@@ -3,59 +3,87 @@
 
 import math
 import random
-from mimetypes import guess_type
+import re
+from mimetypes import guess_extension, guess_type
 from pathlib import Path
 from tempfile import NamedTemporaryFile
-from typing import Dict, Generator, Optional, Tuple, Union
+from typing import Dict, Generator, List, Optional, Tuple, Union
 
-from dataclasses import dataclass, field
+from dataclasses import InitVar, dataclass, field
 from PIL import Image as PILImage
+
+import requests
 
 from . import terminal
 from .__about__ import __pkg_name__
 from .errors import BadFileError
 
-TERM = terminal.PixTerminal()
+TERM        = terminal.PixTerminal()
+NET_SESSION = requests.Session()
 
 PNG_TMP_COMPRESS = 3
 
 
 @dataclass
 class Image:
-    path: Path
-    id:   Optional[int]  = None
+    location: InitVar[Union[str, Path]]
+    id:       Optional[int] = None
 
-    origin_path: Optional[Path] = None
+
+    path:            Path           = field(init=False, default=None)
+    origin_path:     Optional[Path] = field(init=False, default=None)
+    origin_url:      Optional[str]  = field(init=False, default=None)
+    downloaded_path: Optional[str]  = field(init=False, default=None)
 
     w: int = field(init=False, default=0)
     h: int = field(init=False, default=0)
 
-    _pil_image: type(PILImage) = field(init=False, repr=False)
 
-    _tmpfile_keepalive: type(NamedTemporaryFile) = \
-        field(init=False, repr=False, compare=False)
+    _pil_image: type(PILImage) = field(init=False, repr=False, default=None)
+
+    _tmpfile_keepalive: List[type(NamedTemporaryFile)] = \
+        field(init=False, repr=False, compare=False, default_factory=list)
 
     _resized_cache: Dict[Tuple[str, tuple], "Image"] = \
         field(init=False, repr=False, compare=False, default_factory=dict)
 
 
-    def __post_init__(self) -> None:
-        self.path = Path(self.path).expanduser().resolve()
-        # TODO: verify available
-        self.id = self.id or random.randint(1, 4_294_967_295)
+    def __post_init__(self, location) -> None:
+        # To make pylint shut up
+        self._resized_cache     = {}
+        self._tmpfile_keepalive = []
 
-        if not self.origin_path:
+        if re.match(r"https?://.+", str(location)):
+            self._get_from_url(location)
+        else:
+            self.path        = Path(location).expanduser().resolve()
             self.origin_path = self.path
 
-        self._check_file()
+        self._process_input_file()
         self._pil_image = PILImage.open(self.path)
         self.w, self.h  = self._pil_image.size
 
-        self._resized_cache = {}  # make pylint shut up
+        # TODO: verify available
+        self.id = self.id or random.randint(1, 4_294_967_295)
 
 
+    def _get_from_url(self, url: str) -> Path:
+        response = NET_SESSION.get(url)
 
-    def _check_file(self) -> None:
+        # Raise exception if HTTP return code is between 400 and 600.
+        response.raise_for_status()
+
+        ext  = guess_extension(response.headers["Content-Type"])
+        file = NamedTemporaryFile(prefix=f".{__pkg_name__}-", suffix=ext)
+        file.write(response.content)
+
+        self.path       = self.downloaded_path = Path(file.name)
+        self.origin_url = url
+
+        self._tmpfile_keepalive.append(file)
+
+
+    def _process_input_file(self) -> None:
         if not self.path.is_file():
             raise BadFileError(self, f"doesn't exist or not a file.")
 
@@ -65,7 +93,7 @@ class Image:
             raise BadFileError(self, f"unsupported encoding: {encoding}")
 
         if not mime or not mime.startswith("image/"):
-            raise BadFileError(f"file was not recognized as image.")
+            raise BadFileError(self, "file was not recognized as image.")
 
         if mime == "image/png":
             return
@@ -78,7 +106,7 @@ class Image:
 
         PILImage.open(self.path).save(file.name,
                                       compress_level=PNG_TMP_COMPRESS)
-        self._tmpfile_keepalive = file
+        self._tmpfile_keepalive.append(file)
 
         return Path(file.name)
 
@@ -173,9 +201,13 @@ class Image:
         # Save it in the cache dict so it can be re-used later.
         # The temp file will exist as long as the Image is in the cache dict.
 
-        img = Image(file.name, origin_path=self.origin_path)
+        img                  = Image(file.name)
+        img.origin_path      = self.origin_path
+        img.origin_url       = self.origin_url
+        img.downloaded_path  = self.downloaded_path
+
         # pylint: disable=protected-access
-        img._tmpfile_keepalive      = file
+        img._tmpfile_keepalive.append(file)
         self._resized_cache[(w, h)] = img
 
         return img
@@ -264,7 +296,13 @@ class Image:
 
 
     def copy(self, new_id: Optional[int] = None) -> "Image":
-        return type(self)(self.path, new_id)
+        obj = type(self)(self.path, id=new_id)
+
+        obj.origin_path      = self.origin_path
+        obj.origin_url       = self.origin_url
+        obj.downloaded_path  = self.downloaded_path
+
+        return obj
 
 
     def __copy__(self) -> "Image":
@@ -272,21 +310,31 @@ class Image:
 
 
     @classmethod
-    def factory(cls, *paths: Union[Path, str]
+    def factory(cls, *locations: Union[Path, str]
                ) -> Generator["Image", None, None]:
-        for path in paths:
-            path = Path(path)
 
+        for location in locations:
+            # URL
+            if re.match(r"https?://.+", str(location)):
+                try:
+                    yield cls(location)
+                except (BadFileError, requests.RequestException) as err:
+                    print(TERM.red(f"\n{err.args[0]}\n"))
+                continue
+
+            path = Path(location)
+
+            # Folder
             if path.is_dir():
                 for item in path.iterdir():
                     yield from cls.factory(item)
+                continue
 
-                return
-
+            # File
             mime, encoding = guess_type(str(path))
 
             if not encoding and mime and mime.startswith("image/"):
                 try:
                     yield cls(path)
-                except OSError as err:
-                    print("\n%s\n" % TERM.red(str(err.args[0]).capitalize()))
+                except (BadFileError, OSError) as err:
+                    print(TERM.red(f"\n{err.args[0]}\n"))

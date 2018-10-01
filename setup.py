@@ -30,7 +30,8 @@ setup(
         "blessed",
         "dataclasses;python_version<'3.7'",
         "docopt",
-        "pillow"
+        "pillow",
+        "requests"
     ],
 
     include_package_data = True,

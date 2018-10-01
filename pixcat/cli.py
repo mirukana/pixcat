@@ -1,8 +1,7 @@
 # Copyright 2018 miruka
 # This file is part of pixcat, licensed under LGPLv3.
 
-"""Usage:
-  pixcat [r | resize | t | thumbnail | f | fit-screen] [options] [--] PATH...
+"""Usage: pixcat [r|resize | t|thumbnail | f|fit-screen] [options] LOCATION...
 
 Display images on a kitty terminal with optional resizing.
 
@@ -12,8 +11,8 @@ To indicate columns/rows instead, prefix the number with a dash.
 Positioning options are always in columns/rows.
 
 Arguments:
-  PATH: Image file, or folder that will be scanned recursively for images.
-        Multiple files or folders can be specified.
+  LOCATION: File, folder to be be scanned recursively for images, or URL.
+            Any number of file, folder or URLs can be specified.
 
 Options:
   Resizing:
@@ -67,7 +66,7 @@ Options:
                                 Lower values trade memory usage for speed.
 
   Generic:
-    --         Mark the end of options, useful if a PATH starts with a dash.
+    --         Mark the end of options, useful if a LOCATION starts by a dash.
     --help     Show this help.
     --version  Show the program version.
 
@@ -132,7 +131,7 @@ def main(argv: Optional[List[str]] = None) -> None:
     if params["--tmp-compress"]:
         image_module.PNG_TMP_COMPRESS = int(params["--tmp-compress"])
 
-    for image in Image.factory(*params["PATH"]):
+    for image in Image.factory(*params["LOCATION"]):
         handle_image(image, params)
 
     if params["--hang-final"]:
