@@ -17,6 +17,8 @@ from .errors import BadFileError
 
 TERM = terminal.PixTerminal()
 
+PNG_TMP_COMPRESS = 3
+
 
 @dataclass
 class Image:
@@ -74,7 +76,8 @@ class Image:
     def _get_png(self) -> Path:
         file = NamedTemporaryFile(prefix=f".{__pkg_name__}-", suffix=".png")
 
-        PILImage.open(self.path).save(file.name)
+        PILImage.open(self.path).save(file.name,
+                                      compress_level=PNG_TMP_COMPRESS)
         self._tmpfile_keepalive = file
 
         return Path(file.name)
@@ -164,7 +167,7 @@ class Image:
         filt = getattr(PILImage, resample.upper())
         img  = self._pil_image.resize((w, h), filt)
         file = NamedTemporaryFile(prefix=f".{__pkg_name__}-", suffix=".png")
-        img.save(file.name)
+        img.save(file.name, compress_level=PNG_TMP_COMPRESS)
 
         # New Image object of the resized image, bind temp file handle to it.
         # Save it in the cache dict so it can be re-used later.

@@ -62,7 +62,11 @@ Options:
     -G, --hang-final      Wait for a enter keypress after all images are drawn.
                           Useful to wait before deleting temp processed images.
 
-  Program:
+  Performance:
+    -t INT, --tmp-compress INT  PNG compression for temporary files, 0-10.
+                                Lower values trade memory usage for speed.
+
+  Generic:
     --         Mark the end of options, useful if a PATH starts with a dash.
     --help     Show this help.
     --version  Show the program version.
@@ -107,6 +111,7 @@ from typing import List, Optional
 import docopt
 
 from . import Image, data, terminal
+from . import image as image_module
 from .__about__ import __version__
 
 TERM = terminal.PixTerminal()
@@ -123,6 +128,9 @@ def main(argv: Optional[List[str]] = None) -> None:
 
         main(["--help"])
         sys.exit(1)
+
+    if params["--tmp-compress"]:
+        image_module.PNG_TMP_COMPRESS = int(params["--tmp-compress"])
 
     for image in Image.factory(*params["PATH"]):
         handle_image(image, params)

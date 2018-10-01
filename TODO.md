@@ -1,6 +1,5 @@
 - Better README, documentation
 - Improve performances
-- Accept pillow-simd as dependency
 
 - Accept URLs and stdin
 - Ensure that kitty ID is unused when creating an Image
