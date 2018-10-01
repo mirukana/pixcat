@@ -11,7 +11,7 @@
 
 Display images on a [kitty](https://sw.kovidgoyal.net/kitty/) terminal
 with optional custom/thumbnail/fit-to-screen resizing.  
-Developped with the goal to be a more powerful alternative to `kitty icat`,
+Developed with the goal of being a more powerful alternative to `kitty icat`,
 while also providing an usable Python 3.6+ API.
 
 ## Usage

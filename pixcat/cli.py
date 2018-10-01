@@ -31,13 +31,13 @@ Options:
     -s INT, --thumb-size INT  Scale to INTxINT, default 256.
 
   Specific to f/fit-screen:
-    -e, --enlarge                    Scale up if image is smaller than window.
+    -e, --enlarge                    Scale up for images smaller than terminal.
     -o INT, --horizontal-margin INT  Have a left-right padding of INT columns.
     -v INT, --vertical-margin INT    Have a top-bottom padding of INT columns.
 
   Positioning:
-    -x INT, --absolute-x INT  Top-left pic origin in columns, from window left.
-    -y INT, --absolute-y INT  Top-left pic origin in rows, from window top.
+    -x INT, --absolute-x INT  Left image origin in columns, from terminal left.
+    -y INT, --absolute-y INT  Top image origin in rows, from terminal top.
     -z INT, --z-index INT     Images are drawn in front of others that have a
                               lower index. -1 and lower will draw behind text.
 
@@ -58,9 +58,9 @@ Options:
     -P, --print-tmp-path  Print temporary paths of processed images.
     -n, --print-name      Print image filename.
     -i, --print-id        Print kitty image ID.
-    -g, --hang            Wait for a enter keypress between every image.
-    -G, --hang-final      Wait for a enter keypress after all images are drawn.
-                          Useful to wait before deleting temp processed images.
+    -g, --hang            Wait for an enter keypress between every image.
+    -G, --hang-final      Wait for enter keypress after all images are drawn,
+                          useful to wait before deleting temp processed images.
 
   Performance:
     -t INT, --tmp-compress INT  PNG compression for temporary files, 0-10.
