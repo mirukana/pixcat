@@ -322,7 +322,7 @@ class Image:
                     print(TERM.red(f"\n{err.args[0]}\n"))
                 continue
 
-            path = Path(location)
+            path = Path(location).expanduser().resolve()
 
             # Folder
             if path.is_dir():
