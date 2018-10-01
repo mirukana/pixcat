@@ -82,9 +82,9 @@ CLI_TO_FUNCTIONS_PARAMS = {
         "--resample":    ("resample", str),
     },
     "thumbnail": {
-        "--thumb-size":  ("size",     int),
-        "--stretch":     ("stretch",  bool),
-        "--resample":    ("resample", str),
+        "--size":     ("size",     int),
+        "--stretch":  ("stretch",  bool),
+        "--resample": ("resample", str),
     },
     "fit_screen": {
         "--enlarge":           ("enlarge",  bool),

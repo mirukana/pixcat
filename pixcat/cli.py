@@ -28,7 +28,7 @@ Options:
     -H INT, --max-height INT  Downscale when height is higher than INT.
 
   Specific to t/thumbnail:
-    -s INT, --thumb-size INT  Scale to INTxINT, default 256.
+    -s INT, --size INT  Scale to INTxINT, default 256.
 
   Specific to f/fit-screen:
     -e, --enlarge                    Scale up for images smaller than terminal.
@@ -77,8 +77,8 @@ Examples:
     If the width exceeds the terminal's, it will be cropped.
 
   pixcat fit-screen --enlarge image.jpg
-    Display image.jpg, upscale or downscale when necessary to make the image
-    match terminal dimensions.
+    Display image.jpg, downscale or upscale (if --enlarge) when necessary to
+    make image match terminal dimensions.
 
   pixcat resize -w 64 -h 32 -W 512 -H 256 --align right --relative-x -2 *.png
     Display all png files in the current dir with a size of at least 64x32 and
@@ -87,7 +87,7 @@ Examples:
     Align the pictures against the terminal's right edge,
     minus 2 columns (negative --relative-x).
 
-  pixcat thumbnail --size 128 --rescale nearest dir1 dir2
+  pixcat thumbnail --size 128 --resample nearest dir1 dir2
     Recursively find and display images in dir1 and dir2,
     with a min-max-size of 128x128 (aspect ratio will be taken into account).
 

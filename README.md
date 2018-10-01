@@ -34,5 +34,5 @@ Python library (no documentation yet):
 Requires Python 3.6+, tested on GNU/Linux only.
 
 ```sh
-    pip3 install --user --upgrade pixcat
+    pip3 install --upgrade pixcat
 ```

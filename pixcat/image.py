@@ -23,7 +23,7 @@ PNG_TMP_COMPRESS = 3
 @dataclass
 class Image:
     path: Path
-    id:   Optional[int] = None
+    id:   Optional[int]  = None
 
     origin_path: Optional[Path] = None
 
