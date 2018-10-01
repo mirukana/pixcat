@@ -3,7 +3,7 @@
 [![PyPI downloads](http://pepy.tech/badge/pixcat)](
     http://pepy.tech/project/pixcat)
 [![PyPI version](https://img.shields.io/pypi/v/pixcat.svg)](
-    https://pypi.org/projects/pixcat)
+    https://pypi.org/project/pixcat)
 [![PyPI pyversions](https://img.shields.io/pypi/pyversions/pixcat.svg)](
     https://pypi.python.org/pypi/pixcat)
 
