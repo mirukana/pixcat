@@ -1,6 +1,6 @@
 - Better README, documentation
 
-- Accept URLs and stdin
+- Accept stdin
 - Ensure that kitty ID is unused when creating an Image
 - Fix cursor movements
 

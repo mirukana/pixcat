@@ -16,17 +16,32 @@ while also providing an usable Python 3.6+ API.
 
 ## Usage
 
-CLI:
+Basic CLI examples:
 
 ```sh
-    pixcat --help
+pixcat fit-screen --enlarge /tmp/abc.jpg
+
+pixcat thumbnail --size 128 --align left 'https://picsum.photos/480?random'
+
+pixcat resize --min-width 1920 --min-height 1080 \
+              --max-width 1920 --max-height 1080 \
+              ~/images/wallpapers 1.jpg 2.png
 ```
 
-Python library (no documentation yet):
+The commands and options have short forms too.  
+See `pixcat --help` for more information.
+
+Same examples using the Python package (no documentation yet):
 
 ```python3
-    import pixcat
-    ...
+from pixcat import Image
+
+Image("/tmp/abc.jpg").fit_screen(enlarge=True).show()
+
+Image("https://picsum.photos/480?random").thumbnail(128).show(align="left")
+
+for i in Image.factory("~/images/wallpapers", "1.jpg", "2.png"):
+    i.resize(1920, 1080, 1920, 1080).show()
 ```
 
 ## Installation
@@ -34,5 +49,5 @@ Python library (no documentation yet):
 Requires Python 3.6+, tested on GNU/Linux only.
 
 ```sh
-    pip3 install --upgrade pixcat
+pip3 install --upgrade pixcat
 ```
