@@ -52,14 +52,16 @@ Options:
     -c INT, --crop-w INT      Crop image left-to-right to INT pixels.
     -C INT, --crop-h INT      Crop image top-to-bottom to INT pixels.
 
-  Other:
-    -p, --print-path      Print image paths.
-    -P, --print-tmp-path  Print temporary paths of processed images.
+  Extra:
+    -O, --print-origin    Print image origin, like a path or URL.
     -n, --print-name      Print image filename.
     -i, --print-id        Print kitty image ID.
+
+    -q, --quiet           Keep quiet about errors, e.g. "cannot identify image"
+    -R, --raise-errors    Exit and show full traceback if an error happens.
+
     -g, --hang            Wait for an enter keypress between every image.
-    -G, --hang-final      Wait for enter keypress after all images are drawn,
-                          useful to wait before deleting temp processed images.
+    -G, --hang-final      Wait for enter keypress after all images are drawn.
 
   Generic:
     --         Mark the end of options, useful if a LOCATION starts by a dash.
@@ -96,17 +98,16 @@ Bugs and limitations:
   - Absolute positioning options do not work reliably yet
   - An images has 1/4294967295 chances of overriding another when displayed
   - No support in multiplexers like tmux yet
-  - No support over remote terminals yet
   - Resizing the terminal can lead to a mess, use clear/CTRL+L to fix it."""
 
 
 import sys
+from pathlib import Path
 from typing import List, Optional
 
 import docopt
 
 from . import Image, data
-from . import image as image_module
 from .__about__ import __version__
 from .terminal import TERM
 
@@ -123,7 +124,13 @@ def main(argv: Optional[List[str]] = None) -> None:
         main(["--help"])
         sys.exit(1)
 
-    for image in Image.factory(*params["LOCATION"]):
+    images = Image.factory(
+        *params["LOCATION"],
+        raise_errors = params["--raise-errors"],
+        print_errors = not params["--quiet"]
+    )
+
+    for image in images:
         handle_image(image, params)
 
     if params["--hang-final"]:
@@ -142,14 +149,17 @@ def handle_image(image: Image, params: dict) -> None:
 
     print_align = lambda t: print(TERM.align(t, params["--align"] or "center"))
 
-    if params["--print-path"]:
-        print_align(image.origin_path)
-
-    if params["--print-tmp-path"]:
-        print_align(image.path)
-
     if params["--print-name"]:
-        print_align(image.origin_path.name)
+        if isinstance(image.origin, (Path, str)):
+            print_align(Path(image.origin).name)
+        else:
+            print_align("-")
+
+    if params["--print-origin"]:
+        if isinstance(image.origin, (Path, str)):
+            print_align(str(image.origin))
+        else:
+            print_align("-")
 
     if params["--print-id"]:
         print_align(image.id)

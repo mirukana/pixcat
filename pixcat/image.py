@@ -12,8 +12,6 @@ from typing import Dict, Generator, Optional, Tuple, Union
 from PIL import Image as PILImage
 from dataclasses import InitVar, dataclass, field
 
-import requests
-
 from .terminal import TERM
 
 
@@ -45,6 +43,7 @@ class Image:
             return source
 
         if re.match(r"https?://.+", str(source)):
+            import requests
             req = requests.get(source)
             req.raise_for_status()  # Raise if 400 < http code < 600
             source = req.content    # bytes
@@ -267,7 +266,11 @@ class Image:
 
                 if path.is_dir():
                     for item in path.iterdir():
-                        yield from cls.factory(item)
+                        yield from cls.factory(
+                            item,
+                            raise_errors = raise_errors,
+                            print_errors = print_errors
+                        )
                     continue
 
                 yield cls(path)
