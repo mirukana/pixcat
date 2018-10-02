@@ -19,6 +19,8 @@ while also providing an usable Python 3.6+ API.
 Basic CLI examples:
 
 ```sh
+pixcat file.jpg
+
 pixcat fit-screen --enlarge /tmp/abc.jpg
 
 pixcat thumbnail --size 128 --align left 'https://picsum.photos/480?random'
@@ -35,6 +37,8 @@ Same examples using the Python package (no documentation yet):
 
 ```python3
 from pixcat import Image
+
+Image("file.jpg").show()
 
 Image("/tmp/abc.jpg").fit_screen(enlarge=True).show()
 
