@@ -109,11 +109,10 @@ from typing import List, Optional
 
 import docopt
 
-from . import Image, data, terminal
+from . import Image, data
 from . import image as image_module
 from .__about__ import __version__
-
-TERM = terminal.PixTerminal()
+from .terminal import TERM
 
 
 def main(argv: Optional[List[str]] = None) -> None:

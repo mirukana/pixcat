@@ -124,3 +124,6 @@ class PixTerminal(blessed.Terminal):
             return self.rjust(text)
 
         raise ValueError("Alignement must be 'left', 'center' or 'right'.")
+
+
+TERM = PixTerminal()

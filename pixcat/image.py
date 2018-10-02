@@ -14,11 +14,10 @@ from PIL import Image as PILImage
 
 import requests
 
-from . import terminal
+from .terminal import TERM
 from .__about__ import __pkg_name__
 from .errors import BadFileError
 
-TERM        = terminal.PixTerminal()
 NET_SESSION = requests.Session()
 
 PNG_TMP_COMPRESS = 3
