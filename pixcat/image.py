@@ -50,21 +50,19 @@ class Image:
             source = req.content    # bytes
 
         if isinstance(source, bytes):
-            with io.BytesIO() as out:
-                out.write(source)
-                out.seek(0)
-                return PILImage.open(out)
+            # Don't use `with`  here, or _get_kitty_file() will fail.
+            out = io.BytesIO()
+            out.write(source)
+            out.seek(0)
+            return PILImage.open(out)
 
         self.origin = path = Path(source).expanduser().resolve()
         return PILImage.open(path)
 
 
     def _get_kitty_file(self) -> str:
-        image = self._pil_image
-        dest  = NamedTemporaryFile(prefix=".pixcat-", delete=False)
-
-        image.save(dest.name, format="PNG", compress_level=0)
-
+        dest = NamedTemporaryFile(prefix=".pixcat-", delete=False)
+        self._pil_image.save(dest.name, format="PNG", compress_level=0)
         return dest.name
 
 
@@ -254,17 +252,17 @@ class Image:
 
     @classmethod
     def factory(cls,
-                *sources:     "Image.types",
-                ignore_fails: bool = True,
-                print_fails:  bool = False) -> Generator["Image", None, None]:
+                *sources:      "Image.types",
+                raise_errors:  bool = False,
+                print_errors:  bool = True) -> Generator["Image", None, None]:
 
         for source in sources:
             try:
-                if isinstance(source, (bytes, PILImage.Image)):
+                if isinstance(source, (bytes, PILImage.Image)) or \
+                   re.match(r"https?://.+", str(source)):
                     yield cls(source)
                     continue
 
-                # URLs will work just fine, no need to write a specific if
                 path = Path(source).expanduser().resolve()
 
                 if path.is_dir():
@@ -274,10 +272,9 @@ class Image:
 
                 yield cls(path)
 
-            except (OSError, requests.RequestException) as err:
-
-                if not ignore_fails:
+            except Exception as err:
+                if raise_errors:
                     raise
 
-                if print_fails:
-                    print(TERM.red(err.args[0]))
+                if print_errors:
+                    print(TERM.red("%s: %s" % (type(err).__name__, err)))
