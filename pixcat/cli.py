@@ -100,7 +100,6 @@ Examples:
     Same as the command above, short form.
 
 Bugs and limitations:
-  - Absolute positioning options do not work reliably yet
   - Does not work in tmux
   - Resizing the terminal can lead to a mess, use clear/CTRL+L to fix it."""
 

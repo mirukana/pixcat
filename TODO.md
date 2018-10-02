@@ -1,8 +1,6 @@
-- Fix cursor movements
-
-- Accept stdin
-
 - Grid layout
 - Clearing images stuff
+
+- Accept stdin
 
 - Better README, documentation

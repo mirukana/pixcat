@@ -205,10 +205,6 @@ class Image:
              crop_w:     int  = 0,
              crop_h:     int  = 0) -> "Image":
 
-        # If x/y or relative_(x/y) is set, only one must be set
-        assert {bool(x), bool(relative_x)} != {True}
-        assert {bool(y), bool(relative_y)} != {True}
-
         assert align in ("left", "center", "right")
 
         crop_w = self._negative_col_to_px(crop_w)
@@ -226,21 +222,23 @@ class Image:
             "payload": self._get_kitty_file(),
         }
 
-        if align == "center":
+        if x is not None:
+            print(TERM.move_x(x), end="")
+
+        elif align == "center":
             relative_x += round(TERM.width / 2) - round(self.cols / 2)
 
         elif align == "right":
             relative_x += TERM.width - self.cols
 
         if relative_x:
-            print(" " * relative_x, end="")
-        elif x:
-            print(TERM.move_x(x))  # FIXME
+            print(TERM.move_relative_x(relative_x), end="")
+
+        if y is not None:
+            print(TERM.move_y(y), end="")
 
         if relative_y:
-            print("\n" * relative_y, end="")  # FIXME: moving up
-        elif y:
-            print(TERM.move_y(y))  # FIXME
+            print(TERM.move_relative_y(relative_y), end="")
 
         TERM.run_code(**params)
         return self
