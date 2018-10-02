@@ -1,5 +1,8 @@
 ESC = "\033"
 
+MIN_ID = 1
+MAX_ID = 4_294_967_295
+
 # kitty sends a response on stdin (...) for those actions
 ACTIONS_WITH_ANSWER = {"display", "transmit+display", "query"}
 

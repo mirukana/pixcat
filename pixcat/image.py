@@ -9,16 +9,17 @@ from pathlib import Path
 from tempfile import NamedTemporaryFile
 from typing import Dict, Generator, Optional, Tuple, Union
 
-from PIL import Image as PILImage
 from dataclasses import InitVar, dataclass, field
+from PIL import Image as PILImage
 
+from . import data
 from .terminal import TERM
 
 
 @dataclass
 class Image:
-    min_id   = 1
-    max_id   = 4_294_967_295
+    min_id   = data.MIN_ID
+    max_id   = data.MAX_ID
     used_ids = set()
     types    = Union[bytes, str, Path, PILImage.Image]
 

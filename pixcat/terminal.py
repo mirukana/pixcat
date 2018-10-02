@@ -1,6 +1,7 @@
 import array
 import base64
 import fcntl
+import signal
 import sys
 import termios
 from contextlib import contextmanager
@@ -12,8 +13,12 @@ from . import data
 
 
 class KittyAnswerError(Exception):
-    def __init__(self, from_code: str, answer: str):
+    def __init__(self, from_code: str, answer: str) -> None:
         super().__init__(f"{from_code!r} : terminal responded with {answer!r}")
+
+
+class KittyAnswerTimeout(Exception):
+    pass
 
 
 class PixTerminal(blessed.Terminal):
@@ -56,6 +61,9 @@ class PixTerminal(blessed.Terminal):
 
 
     def get_code(self, payload: str = "", **controls: str) -> str:
+        if "id" in controls:
+            assert data.MIN_ID <= controls["id"] <= data.MAX_ID
+
         real_keys = {
             self.img_controls[k][0]:
                 self.img_controls[k][1][v] if self.img_controls[k][1] else v
@@ -72,12 +80,15 @@ class PixTerminal(blessed.Terminal):
         return f"{self.esc}_G{keys_str};{payload}{self.esc}\\"
 
 
-    def run_code(self, payload: str = "", **controls: str) -> None:
+    def run_code(self, payload: str = "", timeout: int = 3, **controls: str
+                ) -> None:
         code = self.get_code(payload, **controls)
         print(code)
 
         if controls.get("action", "transmit") not in self.actions_with_answer:
             return
+
+        signal.alarm(timeout)
 
         # Catch responses kitty print on stdin:
         chars = []
@@ -88,13 +99,27 @@ class PixTerminal(blessed.Terminal):
                 if char == "\\":
                     break
 
-        self._handle_response(code, "".join(chars))
+        signal.alarm(0)  # Cancel alarm
 
+        answer = "".join(chars)
 
-    @staticmethod
-    def _handle_response(from_code: str, answer: str) -> None:
         if answer and ";OK" not in answer:
-            raise KittyAnswerError(from_code, answer)
+            raise KittyAnswerError(code, answer)
+
+
+    def detect_support(self) -> bool:
+        try:
+            # Send an useless code that will force a response out of kitty,
+            # if this is kitty.
+            self.run_code(action="query", id=1)
+
+        except KittyAnswerError:
+            return True
+
+        except KittyAnswerTimeout:
+            pass
+
+        return False
 
 
     # y then x for those because blessings does it like that for some reason
@@ -132,3 +157,10 @@ class PixTerminal(blessed.Terminal):
 
 
 TERM = PixTerminal()
+
+
+def alarm_handler(*_):
+    raise KittyAnswerTimeout()
+
+
+signal.signal(signal.SIGALRM, alarm_handler)

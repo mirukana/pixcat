@@ -1,7 +1,9 @@
 # Copyright 2018 miruka
 # This file is part of pixcat, licensed under LGPLv3.
 
-"""Usage: pixcat [r|resize | t|thumbnail | f|fit-screen] [options] LOCATION...
+"""Usage:
+  pixcat (-d|--detect-support)
+  pixcat [r|resize | t|thumbnail | f|fit-screen] [options] LOCATION...
 
 Display images on a kitty terminal with optional resizing.
 
@@ -52,7 +54,7 @@ Options:
     -c INT, --crop-w INT      Crop image left-to-right to INT pixels.
     -C INT, --crop-h INT      Crop image top-to-bottom to INT pixels.
 
-  Extra:
+  General:
     -O, --print-origin    Print image origin, like a path or URL.
     -n, --print-name      Print image filename.
     -i, --print-id        Print kitty image ID.
@@ -63,7 +65,10 @@ Options:
     -g, --hang            Wait for an enter keypress between every image.
     -G, --hang-final      Wait for enter keypress after all images are drawn.
 
-  Generic:
+    -d, --detect-support  Exit with 0 if terminal supports images, else 1.
+
+
+  Standard:
     --         Mark the end of options, useful if a LOCATION starts by a dash.
     --help     Show this help.
     --version  Show the program version.
@@ -96,7 +101,7 @@ Examples:
 
 Bugs and limitations:
   - Absolute positioning options do not work reliably yet
-  - No support in multiplexers like tmux yet
+  - Does not work in tmux
   - Resizing the terminal can lead to a mess, use clear/CTRL+L to fix it."""
 
 
@@ -122,6 +127,9 @@ def main(argv: Optional[List[str]] = None) -> None:
 
         main(["--help"])
         sys.exit(1)
+
+    if params["--detect-support"]:
+        sys.exit(0 if TERM.detect_support() else 1)
 
     images = Image.factory(
         *params["LOCATION"],
