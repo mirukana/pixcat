@@ -19,10 +19,12 @@ from .terminal import TERM
 
 @dataclass
 class Image:
-    source: InitVar[Union[str, Path, PILImage.Image]]
+    types = Union[str, Path, PILImage.Image]
+
+    source: InitVar[types]
     id:     Optional[int] = None
 
-    origin: Union[str, Path, PILImage.Image] = field(init=False, default=None)
+    origin: types = field(init=False, default=None)
 
     _pil_image: PILImage.Image = field(init=False, repr=False, default=None)
 

@@ -8,7 +8,12 @@ from typing import Tuple
 
 import blessed
 
-from . import data, errors
+from . import data
+
+
+class KittyAnswerError(Exception):
+    def __init__(self, from_code: str, answer: str):
+        super().__init__(f"{from_code!r} : terminal responded with {answer!r}")
 
 
 class PixTerminal(blessed.Terminal):
@@ -89,7 +94,7 @@ class PixTerminal(blessed.Terminal):
     @staticmethod
     def _handle_response(from_code: str, answer: str) -> None:
         if answer and ";OK" not in answer:
-            raise errors.NotOKAnswerError(from_code, answer)
+            raise KittyAnswerError(from_code, answer)
 
 
     # y then x for those because blessings does it like that for some reason
