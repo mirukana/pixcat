@@ -19,7 +19,7 @@ from .terminal import TERM
 
 @dataclass
 class Image:
-    types = Union[str, Path, PILImage.Image]
+    types = Union[bytes, str, Path, PILImage.Image]
 
     source: InitVar[types]
     id:     Optional[int] = None
@@ -41,25 +41,19 @@ class Image:
 
 
     def _get_pil_image(self, source) -> PILImage.Image:
-        # PILImage: just return
-
         if isinstance(source, PILImage.Image):
             return source
 
-        # URL: Fetch content, make and return Image
-
         if re.match(r"https?://.+", str(source)):
-            response = requests.get(source)
+            req = requests.get(source)
+            req.raise_for_status()  # Raise if 400 < http code < 600
+            source = req.content    # bytes
 
-            # Raise exception if HTTP return code is between 400 and 600.
-            response.raise_for_status()
-
+        if isinstance(source, bytes):
             with io.BytesIO() as out:
-                out.write(response.content)
+                out.write(source)
                 out.seek(0)
                 return PILImage.open(out)
-
-        # File path: return Image at path
 
         self.origin = path = Path(source).expanduser().resolve()
         return PILImage.open(path)
@@ -260,24 +254,28 @@ class Image:
 
     @classmethod
     def factory(cls,
-                *sources:     Union[Path, str],
+                *sources:     "Image.types",
                 ignore_fails: bool = True,
                 print_fails:  bool = False) -> Generator["Image", None, None]:
 
         for source in sources:
-            # URLs will just work too
-            path = Path(source).expanduser().resolve()
-
-            if path.is_dir():
-                for item in path.iterdir():
-                    yield from cls.factory(item)
-
-                continue
-
             try:
+                if isinstance(source, (bytes, PILImage.Image)):
+                    yield cls(source)
+                    continue
+
+                # URLs will work just fine, no need to write a specific if
+                path = Path(source).expanduser().resolve()
+
+                if path.is_dir():
+                    for item in path.iterdir():
+                        yield from cls.factory(item)
+                    continue
+
                 yield cls(path)
 
             except (OSError, requests.RequestException) as err:
+
                 if not ignore_fails:
                     raise
 

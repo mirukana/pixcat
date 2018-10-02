@@ -9,7 +9,5 @@
 - Remote support, try to make direct transfers without tmpfile
   - Else, use StringIO by default instead of real tmp files?
 
-- Multiprocessing/zproc?
-
 - Grid layout
 - Clearing images stuff
