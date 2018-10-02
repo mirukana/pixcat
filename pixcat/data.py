@@ -5,7 +5,7 @@ ACTIONS_WITH_ANSWER = {"display", "transmit+display", "query"}
 
 IMAGE_CONTROLS = {
     "action": ("a", {
-        "query":            "q",
+        "query":            "q",  # check if image is already transmited?
         "transmit":         "t",  # id key must be used to set stored image id
         "display":          "p",  # retrieve image from id, id key must be used
         "transmit+display": "T",

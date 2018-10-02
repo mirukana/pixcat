@@ -96,7 +96,6 @@ Examples:
 
 Bugs and limitations:
   - Absolute positioning options do not work reliably yet
-  - An images has 1/4294967295 chances of overriding another when displayed
   - No support in multiplexers like tmux yet
   - Resizing the terminal can lead to a mess, use clear/CTRL+L to fix it."""
 

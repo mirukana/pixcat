@@ -17,7 +17,10 @@ from .terminal import TERM
 
 @dataclass
 class Image:
-    types = Union[bytes, str, Path, PILImage.Image]
+    min_id   = 1
+    max_id   = 4_294_967_295
+    used_ids = set()
+    types    = Union[bytes, str, Path, PILImage.Image]
 
     source: InitVar[types]
     id:     Optional[int] = None
@@ -32,10 +35,23 @@ class Image:
 
     def __post_init__(self, source) -> None:
         self._resized_cache = {}  # to make pylint shut up
+        self.origin         = source
+        self.id             = self._get_id()
+        self._pil_image     = self._get_pil_image(source)
 
-        self.id         = self.id or random.randint(1, 4_294_967_295)
-        self.origin     = source
-        self._pil_image = self._get_pil_image(source)
+
+    def _get_id(self) -> int:
+        # Avoid hanging if somehow more than 4 billion of ids are registered:
+        if len(self.used_ids) >= self.max_id:
+            self.used_ids = set()
+
+        random_id = random.randint(self.min_id, self.max_id)
+
+        while random_id in self.used_ids:
+            random_id = random.randint(self.min_id, self.max_id)
+
+        self.used_ids.add(random_id)
+        return random_id
 
 
     def _get_pil_image(self, source) -> PILImage.Image:
