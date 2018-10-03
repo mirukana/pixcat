@@ -15,18 +15,18 @@ from PIL import Image as PILImage
 from . import data
 from .terminal import TERM
 
+ImageType = Union[bytes, str, Path, PILImage.Image]
 
 @dataclass
 class Image:
     min_id   = data.MIN_ID
     max_id   = data.MAX_ID
     used_ids = set()
-    types    = Union[bytes, str, Path, PILImage.Image]
 
-    source: InitVar[types]
+    source: InitVar[ImageType]
     id:     Optional[int] = None
 
-    origin: types = field(init=False, default=None)
+    origin: ImageType = field(init=False, default=None)
 
     _pil_image: PILImage.Image = field(init=False, repr=False, default=None)
 
@@ -188,7 +188,7 @@ class Image:
         v_margin = self._negative_row_to_px(v_margin) * 4
 
         max_wh = (TERM.px_width - h_margin, TERM.px_height - v_margin)
-        min_wh =  max_wh if enlarge else (0, 0)
+        min_wh =  max_wh if enlarge else (1, 1)
 
         return self.resize(*min_wh, *max_wh, stretch, resample)
 
@@ -196,7 +196,7 @@ class Image:
     def show(self,
              x:          Optional[int] = None,
              y:          Optional[int] = None,
-             z:          int  = 0,
+             z:          int  = -1,
              relative_x: int  = 0,
              relative_y: int  = 0,
              align:      str  = "center",
@@ -223,7 +223,7 @@ class Image:
         }
 
         if x is not None:
-            print(TERM.move_x(x), end="")
+            TERM.print_esc(TERM.move_x(x))
 
         elif align == "center":
             relative_x += round(TERM.width / 2) - round(self.cols / 2)
@@ -232,14 +232,16 @@ class Image:
             relative_x += TERM.width - self.cols
 
         if relative_x:
-            print(TERM.move_relative_x(relative_x), end="")
+            TERM.print_esc(TERM.move_relative_x(relative_x))
 
         if y is not None:
-            print(TERM.move_y(y), end="")
+            TERM.print_esc(TERM.move_y(y))
 
         if relative_y:
-            print(TERM.move_relative_y(relative_y), end="")
+            TERM.print_esc(TERM.move_relative_y(relative_y))
 
+
+        # import time; time.sleep(2)
         TERM.run_code(**params)
         return self
 
@@ -266,7 +268,7 @@ class Image:
 
     @classmethod
     def factory(cls,
-                *sources:      "Image.types",
+                *sources:      ImageType,
                 raise_errors:  bool = False,
                 print_errors:  bool = True) -> Generator["Image", None, None]:
 

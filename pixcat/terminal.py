@@ -83,6 +83,7 @@ class PixTerminal(blessed.Terminal):
     def run_code(self, payload: str = "", timeout: int = 3, **controls: str
                 ) -> None:
         code = self.get_code(payload, **controls)
+
         print(code)
 
         if controls.get("action", "transmit") not in self.actions_with_answer:
@@ -154,6 +155,11 @@ class PixTerminal(blessed.Terminal):
             return self.rjust(text)
 
         raise ValueError("Alignement must be 'left', 'center' or 'right'.")
+
+
+    @staticmethod
+    def print_esc(*args, **kwargs) -> None:
+        print(*args, **kwargs, end="", sep="", flush=True)
 
 
 TERM = PixTerminal()
