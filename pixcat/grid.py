@@ -5,23 +5,31 @@ import math
 import textwrap
 from typing import AnyStr, Callable, Iterable, Optional, Union
 
+import ansiwrap
+from ansiwrap import ansilen
 from dataclasses import dataclass, field
 
 from . import Image
 from .terminal import TERM
 
-CellType = Union[None, Image, AnyStr, Callable[["Grid"], Union[Image, AnyStr]]]
+FromCallable = Union[None, Image, AnyStr]
+CellType     = Union[None, Image, AnyStr, Callable[["Grid"], FromCallable]]
 
 
 @dataclass
 class Grid:
-    cells:         Iterable[CellType] = field()
-    cell_w:        int                = 256
-    cell_h:        int                = 256
-    max_cols:      Optional[int]      = None
-    max_rows:      Optional[int]      = None
-    raise_errors:  bool               = False
-    print_errors:  bool               = True
+    cells: Iterable[CellType] = field()
+
+    cell_w:   int           = 256  # TODO: accept val in cols/rows
+    cell_h:   int           = 256
+    max_cols: Optional[int] = None
+    max_rows: Optional[int] = None
+
+    text_overflow:   str = "wrap"  # wrap or shorten
+    cut_placeholder: str = " …"
+
+    raise_errors: bool = False
+    print_errors: bool = True
 
 
     @property
@@ -64,7 +72,7 @@ class Grid:
 
                 x = start_x
 
-            content: Union[Image, str] = self._get_content(cell)
+            content: FromCallable = self._get_content(cell)
 
             if isinstance(content, Image):
                 content_cols = content.cols
@@ -72,12 +80,12 @@ class Grid:
             elif not content:
                 content_cols = content_rows = 0
             else:
-                content_cols = len(max(content.splitlines(), key=len))
-                content_rows = len(content.splitlines())
+                content_cols = ansilen(max(content.splitlines(), key=ansilen))
+                content_rows = ansilen(content.splitlines())
 
             # Calculate paddings inside the cell to align the content
-            inner_x = round(self.cell_cols / 2) - round(content_cols / 2)
-            inner_y = round(self.cell_rows / 2) - round(content_rows / 2)
+            inner_x = round((self.cell_cols / 2) - (content_cols / 2))
+            inner_y = math.floor((self.cell_rows / 2) - (content_rows / 2))
 
             # Print the vertical padding as blank lines
             TERM.print_esc("\n" * inner_y)
@@ -113,8 +121,7 @@ class Grid:
         if isinstance(cell, Image):
             return self._get_resized_image(cell)
 
-        # TODO: textwrap/ansiwrap
-        return str(cell)
+        return self._get_text(cell)
 
 
     def _get_resized_image(self, image: Image) -> Image:
@@ -127,3 +134,22 @@ class Grid:
 
             if self.print_errors:
                 print(TERM.red("%s: %s" % (type(err).__name__, err)))
+
+
+    def _get_text(self, text: AnyStr) -> str:
+        assert self.text_overflow in ("wrap", "shorten")
+
+        lines = getattr(ansiwrap, self.text_overflow)(
+            str(text),
+            width              = self.cell_cols,
+            placeholder        = self.cut_placeholder,
+            tabsize            = 4,
+            replace_whitespace = False,
+            drop_whitespace    = False
+        )
+
+        if isinstance(lines, str):  # shorten returns a str, wrap a list
+            return lines
+
+        lines = [l for line in lines for l in line.splitlines()]
+        return "\n".join(lines[:self.cell_rows])
