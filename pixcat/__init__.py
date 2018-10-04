@@ -4,4 +4,4 @@
 from . import data, terminal
 from .__about__ import __doc__
 from .image import Image
-from . import grid
+from .grid import Grid
