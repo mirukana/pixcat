@@ -14,6 +14,7 @@ from PIL import Image as PILImage
 
 from . import data
 from .terminal import TERM
+from .size import HSize, VSize
 
 ImageType = Union[bytes, str, Path, PILImage.Image]
 
@@ -83,12 +84,12 @@ class Image:
 
 
     @property
-    def cols(self) -> int:
-        return math.ceil(self._pil_image.size[0] / TERM.cell_px_width)
+    def width(self) -> HSize:
+        return HSize(px=self._pil_image.size[0])
 
     @property
-    def rows(self) -> int:
-        return math.ceil(self._pil_image.size[1] / TERM.cell_px_height)
+    def height(self) -> VSize:
+        return VSize(px=self._pil_image.size[1])
 
 
     @staticmethod
@@ -113,13 +114,14 @@ class Image:
         max_w = max_w or img_w
         max_h = max_h or img_h
 
-        assert min_w <= max_w
-        assert min_h <= max_h
-
         min_w = self._negative_col_to_px(min_w)
         min_h = self._negative_row_to_px(min_h)
         max_w = self._negative_col_to_px(max_w)
         max_h = self._negative_row_to_px(max_h)
+
+        assert min_w <= max_w
+        assert min_h <= max_h
+
 
         # Upscale if image is smaller than minimum width/height:
         if (img_w < min_w or img_h < min_h) and img_w < max_w and img_h <max_h:
@@ -194,52 +196,61 @@ class Image:
 
 
     def show(self,
-             x:          Optional[int] = None,
-             y:          Optional[int] = None,
-             z:          int  = -1,
-             relative_x: int  = 0,
-             relative_y: int  = 0,
-             align:      str  = "center",
-             offset_x:   int  = 0,
-             offset_y:   int  = 0,
-             crop_w:     int  = 0,
-             crop_h:     int  = 0) -> "Image":
+             x:          Optional[HSize] = None,
+             y:          Optional[VSize] = None,
+             z:          int   = -1,
+             relative_x: HSize = HSize(0),
+             relative_y: VSize = VSize(0),
+             align:      str   = "center",
+             crop_w:     HSize = HSize(0),
+             crop_h:     VSize = VSize(0)) -> "Image":
 
         assert align in ("left", "center", "right")
 
-        crop_w = self._negative_col_to_px(crop_w)
-        crop_h = self._negative_row_to_px(crop_h)
+        offset_x = HSize(0)
+        offset_y = VSize(0)
+
+        if x is not None:
+            TERM.print_esc(TERM.move_x(math.floor(x).cells))
+            offset_x += x - math.floor(x)
+
+
+        elif align == "center":
+            to_add      = TERM.px_width / 2 - self.width / 2
+            relative_x += math.floor(to_add)
+            offset_x   += to_add - math.floor(to_add)
+
+        elif align == "right":
+            to_add      = TERM.px_width - self.width
+            relative_x += math.floor(to_add)
+            offset_x   += to_add - math.floor(to_add)
+
+
+        if y is not None:
+            TERM.print_esc(TERM.move_y(y.cells - 1))
+            offset_y += y - math.floor(y)
+
+
+        if relative_x:
+            TERM.print_esc(TERM.move_relative_x(relative_x.cells))
+
+        if relative_y:
+            TERM.print_esc(TERM.move_relative_y(relative_y.cells))
+
 
         params = {
-            "offset_x": offset_x, "offset_y": offset_y,
-            "crop_w":   crop_w,   "crop_h":   crop_h,
+            "offset_x": offset_x.px,
+            "offset_y": offset_y.px,
+            "crop_w":   crop_w.px,
+            "crop_h":   crop_h.px,
             "z_index":  z,
 
-            "action": "transmit+display",
+            "action":  "transmit+display",
             "medium" : "tempfile",
             "format" : "png",
             "id":      self.id,
             "payload": self._get_kitty_file(),
         }
-
-        if x is not None:
-            TERM.print_esc(TERM.move_x(x))
-
-        elif align == "center":
-            relative_x += round(TERM.width / 2) - round(self.cols / 2)
-
-        elif align == "right":
-            relative_x += TERM.width - self.cols
-
-        if relative_x:
-            TERM.print_esc(TERM.move_relative_x(relative_x))
-
-        if y is not None:
-            TERM.print_esc(TERM.move_y(y))
-
-        if relative_y:
-            TERM.print_esc(TERM.move_relative_y(relative_y))
-
 
         # import time; time.sleep(2)
         TERM.run_code(**params)

@@ -1,27 +1,25 @@
 # Copyright 2018 miruka
 # This file is part of pixcat, licensed under LGPLv3.
 
-import math
-import textwrap
-from typing import AnyStr, Callable, Iterable, Optional, Union
+from typing import AnyStr, Callable, Iterable, Optional, Tuple, Union
 
 import ansiwrap
 from ansiwrap import ansilen
 from dataclasses import dataclass, field
 
 from . import Image
+from .size import AxisSizes, HSize, TermHSize, VSize
 from .terminal import TERM
 
-FromCallable = Union[None, Image, AnyStr]
-CellType     = Union[None, Image, AnyStr, Callable[["Grid"], FromCallable]]
+ContentType  = Union[Image, AnyStr]
+CellType     = Union[None, Image, AnyStr, Callable[["Grid"], ContentType]]
 
 
 @dataclass
 class Grid:
-    cells: Iterable[CellType] = field()
+    cells_w: AxisSizes = field(default=None)
+    cells_h: AxisSizes = field(default=None)
 
-    cell_w:   int           = 256  # TODO: accept val in cols/rows
-    cell_h:   int           = 256
     max_cols: Optional[int] = None
     max_rows: Optional[int] = None
 
@@ -32,101 +30,93 @@ class Grid:
     print_errors: bool = True
 
 
-    @property
-    def cell_cols(self) -> int:
-        return math.ceil(self.cell_w / TERM.cell_px_width)
+    def __post_init__(self) -> None:
+        self.cells_w = self.cells_w or AxisSizes(HSize(px=256))
+        self.cells_h = self.cells_h or AxisSizes(VSize(px=256))
 
-    @property
-    def cell_rows(self) -> int:
-        return math.ceil(self.cell_h / TERM.cell_px_height)
+        assert isinstance(self.cells_w, AxisSizes)
+        assert isinstance(self.cells_h, AxisSizes)
+
 
     @property
     def cells_per_row(self) -> int:
         if self.max_cols:
             return self.max_cols
 
-        return max(1, math.floor(TERM.width / self.cell_cols))
+        term_w = TermHSize()
+        index  = at_col = can_fit = 0
+
+        while True:
+            to_col = self.cells_w[index]
+
+            if at_col + to_col > term_w - TERM.cell_px_width:
+                break
+
+            at_col  += to_col
+            can_fit += 1
+            index   += 1
+
+        return max(1, can_fit)
 
 
-    def show(self) -> "Grid":
-        # We have to handle y/rows manually because of forced blank lines,
-        # terminal scrolling, etc; but x/columns are no trouble.
-        start_x = x = TERM.get_location()[1]
+    def show(self, cells_content: Iterable[CellType]) -> "Grid":
+        col = row = 0
 
-        printed_rows = 0
+        for content in cells_content:
+            restore_x = TERM.get_location()[1]
 
-        for index, cell in enumerate(self.cells):
-
-            last_in_row   = index % self.cells_per_row == 0
-            one_per_row   = self.cells_per_row < 2
-            first_in_row  = index == 0
-
-            if last_in_row and (one_per_row or not first_in_row):
-                # Print enough lines to begin a new row below the previous one
-                TERM.print_esc("\n" * self.cell_rows)
-
-                printed_rows += 1
-
-                if self.max_rows and printed_rows > self.max_rows:
-                    break
-
-                x = start_x
-
-            content: FromCallable = self._get_content(cell)
-
-            if isinstance(content, Image):
-                content_cols = content.cols
-                content_rows = content.rows
-            elif not content:
-                content_cols = content_rows = 0
-            else:
-                content_cols = ansilen(max(content.splitlines(), key=ansilen))
-                content_rows = ansilen(content.splitlines())
-
-            # Calculate paddings inside the cell to align the content
-            inner_x = round((self.cell_cols / 2) - (content_cols / 2))
-            inner_y = math.floor((self.cell_rows / 2) - (content_rows / 2))
-
-            # Print the vertical padding as blank lines
-            TERM.print_esc("\n" * inner_y)
-
-            if isinstance(content, Image):
-                content.show(x = x + inner_x, z=-1)
-            else:
-                print(textwrap.indent(content, " " * (x + inner_x)))
-
-            # If needed, print blank lines to "complete the cell",
-            # i.e. content height didn't fill it.
-            # The cursor needs to always be at the cell row's bottom,
-            # for the next "put back" escape code to work properly.
-            TERM.print_esc("\n" * (self.cell_rows - content_rows - inner_y))
+            self._show_content(*self._get_content(content, col, row), col, row)
 
             # "Undo" any terminal scrolling and put cursor back to the row
             # beginning so we can print more content in line.
-            TERM.print_esc(TERM.move_relative_y(-self.cell_rows - 1))
+            TERM.print_esc(TERM.move_relative(
+                -self.cells_h[row].cells, restore_x
+            ))
 
-            x += self.cell_cols
+            # Advance the cursor x position in the row
+            TERM.print_esc(TERM.move_relative_x(self.cells_w[col].cells))
 
-        TERM.print_esc("\n" * self.cell_rows)
+            col += 1
+
+            if col >= self.cells_per_row:
+                # Print enough lines to begin a new row below the previous one
+                TERM.print_esc("\n" * self.cells_h[row].cells)
+
+                col  = 0
+                row += 1
+
+                if self.max_rows and row > self.max_rows:
+                    break
+
+        TERM.print_esc("\n" * self.cells_h[row].cells)
         return self
 
 
-    def _get_content(self, cell: CellType) -> Union[Image, str]:
+    def _get_content(self, cell: CellType, col: int, row: int
+                    ) -> Tuple[ContentType, HSize, VSize]:
         if cell is None:
-            return ""
+            return ("", HSize(0), VSize(0))
 
         if isinstance(cell, Callable):
-            return self._get_content(cell(self))
+            return self._get_content(cell(self), col, row)
 
         if isinstance(cell, Image):
-            return self._get_resized_image(cell)
+            img = self._get_resized_image(cell, col, row)
+            return (img, img.width, img.height)
 
-        return self._get_text(cell)
+        text         = self._get_text(cell, col, row)
+        longest_line = ansilen(max(text.splitlines(), key=ansilen))
+        num_lines    = ansilen(text.splitlines())
+        return (text, HSize(cells=longest_line), VSize(cells=num_lines))
 
 
-    def _get_resized_image(self, image: Image) -> Image:
+    def _get_resized_image(self, cell: Image, col: int, row: int) -> Image:
         try:
-            return image.resize(1, 1, self.cell_w, self.cell_h)
+            return cell.resize(
+                1, 1,
+                # TODO: change this to use new Size stuff
+                self.cells_w[col].px, self.cells_h[row].px
+            )
 
         except Exception as err:
             if self.raise_errors:
@@ -136,20 +126,45 @@ class Grid:
                 print(TERM.red("%s: %s" % (type(err).__name__, err)))
 
 
-    def _get_text(self, text: AnyStr) -> str:
+    def _get_text(self, cell: AnyStr, col: int, row: int) -> str:
         assert self.text_overflow in ("wrap", "shorten")
 
-        lines = getattr(ansiwrap, self.text_overflow)(
-            str(text),
-            width              = self.cell_cols,
-            placeholder        = self.cut_placeholder,
-            tabsize            = 4,
-            replace_whitespace = False,
-            drop_whitespace    = False
+        lines = [
+            getattr(ansiwrap, self.text_overflow)(
+                line,
+                width              = self.cells_w[col].cells,
+                placeholder        = self.cut_placeholder,
+                tabsize            = 4,
+                replace_whitespace = False,
+                drop_whitespace    = False
+            )
+            for line in cell.split("\n")
+        ]
+
+        return "\n".join(lines[:self.cells_h[row].cells])
+
+
+    def _show_content(self,
+                      content: ContentType, width: HSize, height: VSize,
+                      col: int, row: int) -> None:
+
+        # Calculate paddings inside the cell to align the content
+        # inner_x = self.cells_w[col] / 2 - width  / 2
+        inner_x = self.cells_w[col] / 2 - width  / 2
+        inner_y = self.cells_h[row] / 2 - height / 2
+
+        # Print vertical padding as blank lines, put cursor back to the right x
+        TERM.print_esc("\n" * inner_y.cells,
+                       TERM.move_x(TERM.get_location()[1] - 1))
+
+        if isinstance(content, Image):
+            content.show(align="left", relative_x=inner_x)
+        else:
+            TERM.print_esc(" " * inner_x.cells, content, "\n")
+
+        # If needed, print blank lines to "complete the cell",
+        # i.e. content height didn't fill it.
+        # The cursor needs to always be at the cell row's bottom.
+        TERM.print_esc(
+            "\n" * (self.cells_h[row].cells - height.cells - inner_y.cells)
         )
-
-        if isinstance(lines, str):  # shorten returns a str, wrap a list
-            return lines
-
-        lines = [l for line in lines for l in line.splitlines()]
-        return "\n".join(lines[:self.cell_rows])

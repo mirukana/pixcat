@@ -1,6 +1,7 @@
 import array
 import base64
 import fcntl
+import math
 import signal
 import sys
 import termios
@@ -126,15 +127,15 @@ class PixTerminal(blessed.Terminal):
     # y then x for those because blessings does it like that for some reason
     def move_relative(self, y: int = 0, x: int = 0) -> str:
         cursor_y, cursor_x = self.get_location()
-        return self.move(cursor_y + y, cursor_x + x)
+        return self.move(cursor_y + y - 1, cursor_x + x - 1)
 
     def move_relative_x(self, x: int = 0) -> str:
         cursor_y, cursor_x = self.get_location()
-        return self.move(cursor_y, cursor_x + x)
+        return self.move(cursor_y - 1, cursor_x + x - 1)
 
     def move_relative_y(self, y: int = 0) -> str:
         cursor_y, cursor_x = self.get_location()
-        return self.move(cursor_y + y, cursor_x)
+        return self.move(cursor_y + y - 1, cursor_x - 1)
 
 
     @contextmanager
