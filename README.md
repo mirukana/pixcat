@@ -30,13 +30,13 @@ pixcat resize --min-width 1920 --min-height 1080 \
               ~/images/wallpapers 1.jpg 2.png
 ```
 
-The commands and options have short forms too.  
 See `pixcat --help` for more information.
 
 Same examples using the Python package (no documentation yet):
 
 ```python3
 from pixcat import Image
+from pixcat.size import HSize, VSize
 
 Image("file.jpg").show()
 
@@ -45,7 +45,7 @@ Image("/tmp/abc.jpg").fit_screen(enlarge=True).show()
 Image("https://picsum.photos/480?random").thumbnail(128).show(align="left")
 
 for i in Image.factory("~/images/wallpapers", "1.jpg", "2.png"):
-    i.resize(1920, 1080, 1920, 1080).show()
+    i.resize(HSize(1920), VSize(1080), HSize(1920), VSize(1080)).show()
 ```
 
 ## Installation
