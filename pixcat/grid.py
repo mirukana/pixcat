@@ -1,6 +1,7 @@
 # Copyright 2018 miruka
 # This file is part of pixcat, licensed under LGPLv3.
 
+import math
 from typing import AnyStr, Callable, Iterable, Optional, Tuple, Union
 
 import ansiwrap
@@ -63,15 +64,14 @@ class Grid:
         col = row = 0
 
         for content in cells_content:
-            restore_x = TERM.get_location()[1]
+            restore_x = TERM.move_x(TERM.get_location()[1] - 1)
 
             self._show_content(*self._get_content(content, col, row), col, row)
 
             # "Undo" any terminal scrolling and put cursor back to the row
             # beginning so we can print more content in line.
-            TERM.print_esc(TERM.move_relative(
-                -self.cells_h[row].cells, restore_x
-            ))
+            TERM.print_esc(TERM.move_relative_y(-self.cells_h[row].cells),
+                           restore_x)
 
             # Advance the cursor x position in the row
             TERM.print_esc(TERM.move_relative_x(self.cells_w[col].cells))
@@ -148,19 +148,20 @@ class Grid:
                       content: ContentType, width: HSize, height: VSize,
                       col: int, row: int) -> None:
 
-        # Calculate paddings inside the cell to align the content
-        # inner_x = self.cells_w[col] / 2 - width  / 2
-        inner_x = self.cells_w[col] / 2 - width  / 2
-        inner_y = self.cells_h[row] / 2 - height / 2
+        inner_y = math.floor(self.cells_h[row]) / 2 - height / 2
+
+        restore_x = TERM.move_x(TERM.get_location()[1] - 1)
 
         # Print vertical padding as blank lines, put cursor back to the right x
-        TERM.print_esc("\n" * inner_y.cells,
-                       TERM.move_x(TERM.get_location()[1] - 1))
+        TERM.print_esc("\n" * inner_y.cells, restore_x)
 
         if isinstance(content, Image):
+            inner_x = self.cells_w[col] / 2 - width  / 2
             content.show(align="left", relative_x=inner_x)
         else:
-            TERM.print_esc(" " * inner_x.cells, content, "\n")
+            for line in content.splitlines():
+                inner_x = self.cells_w[col].cells // 2 - ansilen(line) // 2
+                TERM.print_esc(" " * inner_x, line, "\n", restore_x)
 
         # If needed, print blank lines to "complete the cell",
         # i.e. content height didn't fill it.

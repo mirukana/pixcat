@@ -1,7 +1,6 @@
 import array
 import base64
 import fcntl
-import math
 import signal
 import sys
 import termios
@@ -65,6 +64,10 @@ class PixTerminal(blessed.Terminal):
         if "id" in controls:
             assert data.MIN_ID <= controls["id"] <= data.MAX_ID
 
+        # BUG: kitty seems to subtract 1px from offsets
+        controls["offset_x"] = controls.get("offset_x", 0) + 1
+        controls["offset_y"] = controls.get("offset_y", 0) + 1
+
         real_keys = {
             self.img_controls[k][0]:
                 self.img_controls[k][1][v] if self.img_controls[k][1] else v
@@ -77,8 +80,9 @@ class PixTerminal(blessed.Terminal):
         if payload:
             payload = str(base64.b64encode(bytes(payload, "utf-8")), "utf-8")
 
-        # print("%r" % f"{ESC}_G{keys_str};{payload}{ESC}\\")
-        return f"{self.esc}_G{keys_str};{payload}{self.esc}\\"
+        code = f"{self.esc}_G{keys_str};{payload}{self.esc}\\"
+        # import pdb; pdb.set_trace()
+        return code
 
 
     def run_code(self, payload: str = "", timeout: int = 3, **controls: str

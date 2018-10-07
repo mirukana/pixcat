@@ -61,15 +61,15 @@ IMAGE_CONTROLS = {
         "at_zindex":      "Z",
     }),
 
-    "offset_x":  ("X", {}),
-    "offset_y":  ("Y", {}),
+    "z_index": ("z", {}),
 
-    "origin_x":  ("x", {}),
-    "origin_y":  ("y", {}),
-    "z_index":   ("z", {}),
+    "offset_x": ("X", {}),
+    "offset_y": ("Y", {}),
 
-    "crop_w": ("w", {}),
-    "crop_h": ("h", {}),
+    "crop_origin_x": ("x", {}),
+    "crop_origin_y": ("y", {}),
+    "crop_w":        ("w", {}),
+    "crop_h":        ("h", {}),
 
     "fit_cols": ("c", {}),
     "fit_rows": ("r", {}),

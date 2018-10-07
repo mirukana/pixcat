@@ -252,7 +252,6 @@ class Image:
             "payload": self._get_kitty_file(),
         }
 
-        # import time; time.sleep(2)
         TERM.run_code(**params)
         return self
 
