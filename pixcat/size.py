@@ -215,13 +215,16 @@ AxisSizeType = Union[AxisSizeType, List[AxisSizeType]]
 
 
 class AxisSizes(list):
-    def __init__(self, sizes: AxisSizeType):
+    def __init__(self, sizes: AxisSizeType, wrap_around=False):
         super().__init__(self._listify(sizes))
-
+        self.wrap_around = wrap_around
 
     def __repr__(self) -> str:
-        return "%s(%s)" % (type(self).__name__, super().__repr__())
-
+        return "%s(%s, %s)" % (
+            type(self).__name__,
+            super().__repr__(),
+            f"wrap_around={self.wrap_around}"
+        )
 
     @staticmethod
     def _listify(value) -> List[Union[HSize, VSize]]:
@@ -233,11 +236,11 @@ class AxisSizes(list):
 
         return values
 
-
     def __getitem__(self, index):
         try:
             item = super().__getitem__(index)
         except IndexError:
-            item = super().__getitem__(-1)
+            new_index = index % len(self) if self.wrap_around else -1
+            item      = super().__getitem__(new_index)
 
         return item(self, index) if callable(item) else item

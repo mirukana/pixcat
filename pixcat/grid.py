@@ -24,6 +24,9 @@ class Grid:
     max_cols: Optional[int] = None
     max_rows: Optional[int] = None
 
+    force_even: bool = False
+    force_odd:  bool = False
+
     text_overflow:   str = "wrap"  # wrap or shorten
     cut_placeholder: str = " …"
 
@@ -38,24 +41,35 @@ class Grid:
         assert isinstance(self.cells_w, AxisSizes)
         assert isinstance(self.cells_h, AxisSizes)
 
+        if self.force_even or self.force_odd:
+            assert not (self.force_even and self.force_odd)
+
 
     @property
     def cells_per_row(self) -> int:
         if self.max_cols:
-            return self.max_cols
+            can_fit = self.max_cols
+        else:
+            term_w = TermHSize()
+            index  = at_col = can_fit = 0
 
-        term_w = TermHSize()
-        index  = at_col = can_fit = 0
+            while True:
+                to_col = self.cells_w[index]
 
-        while True:
-            to_col = self.cells_w[index]
+                if at_col + to_col > term_w - TERM.cell_px_width:
+                    break
 
-            if at_col + to_col > term_w - TERM.cell_px_width:
-                break
+                at_col  += to_col
+                can_fit += 1
+                index   += 1
 
-            at_col  += to_col
-            can_fit += 1
-            index   += 1
+        if self.force_even:
+            # Nearest even number down, e.g. 3 → 2
+            return max(2, math.floor(can_fit / 2.0) * 2)
+
+        if self.force_odd:
+            # Nearest odd number down, e.g. 4 → 3, 3 → 3
+            return max(1, can_fit - 1 if can_fit % 2 == 0 else can_fit)
 
         return max(1, can_fit)
 
