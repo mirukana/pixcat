@@ -7,10 +7,8 @@
 
 Display images on a kitty terminal with optional resizing.
 
-For resizing options, measures (INT number arguments) are in pixel by default.
-To indicate columns/rows instead, prefix the number with a dash.
-
-Positioning options are always in columns/rows.
+For options taking a NUM argument, NUM will be seen as pixels by default.
+To indicate terminal columns/rows, append "t" to the number, e.g. "12t".
 
 Arguments:
   LOCATION: File, folder to be be scanned recursively for images, or URL.
@@ -23,36 +21,33 @@ Options:
                               nearest, bilinear, bicubic, lanczos (default).
 
   Specific to r/resize:
-    -w INT, --min-width INT   Upscale when width is lower than INT.
-    -h INT, --min-height INT  Upscale when height is lower than INT.
-    -W INT, --max-width INT   Downscale when height is higher than INT.
-    -H INT, --max-height INT  Downscale when height is higher than INT.
+    -w NUM, --min-width NUM   Upscale when width is lower than NUM.
+    -h NUM, --min-height NUM  Upscale when height is lower than NUM.
+    -W NUM, --max-width NUM   Downscale when height is higher than NUM.
+    -H NUM, --max-height NUM  Downscale when height is higher than NUM.
 
   Specific to t/thumbnail:
-    -s INT, --size INT  Scale to INTxINT, default 256.
+    -s PX, --size PX  Scale to PXxPX pixels, default 256.
 
   Specific to f/fit-screen:
     -e, --enlarge                    Scale up for images smaller than terminal.
-    -o INT, --horizontal-margin INT  Have a left-right padding of INT columns.
-    -v INT, --vertical-margin INT    Have a top-bottom padding of INT columns.
+    -o NUM, --horizontal-margin NUM  Have a left-right padding of NUM.
+    -v NUM, --vertical-margin NUM    Have a top-bottom padding of NUM.
 
   Positioning:
-    -x INT, --absolute-x INT  Left image origin in columns, from terminal left.
-    -y INT, --absolute-y INT  Top image origin in rows, from terminal top.
+    -x NUM, --absolute-x NUM  Left image origin, from the terminal's left.
+    -y NUM, --absolute-y NUM  Top image origin, from the terminal's top.
     -z INT, --z-index INT     Images are drawn in front of others that have a
                               lower index. -1 and lower will draw behind text.
 
-    -X INT, --relative-x INT  Like -x, but from current cursor position.
-    -Y INT, --relative-y INT  Like -y, but from current cursor position.
+    -X NUM, --relative-x NUM  Like -x, but from current cursor position.
+    -Y NUM, --relative-y NUM  Like -y, but from current cursor position.
 
     -a ALI, --align ALI       Image and text alignement, -X is added to it.
                               left, center (default) or right.
 
-    -f INT, --offset-x INT    Left offset in pixel, max is column width.
-    -F INT, --offset-y INT    Top offset in pixel, max is row height.
-
-    -c INT, --crop-w INT      Crop image left-to-right to INT pixels.
-    -C INT, --crop-h INT      Crop image top-to-bottom to INT pixels.
+    -c NUM, --crop-w NUM      Crop image left-to-right to NUM.
+    -C NUM, --crop-h NUM      Crop image top-to-bottom to NUM.
 
   General:
     -O, --print-origin    Print image origin, like a path or URL.
@@ -110,9 +105,51 @@ from typing import List, Optional
 
 import docopt
 
-from . import Image, data
+from . import Image
 from .__about__ import __version__
+from .size import HSize, VSize
 from .terminal import TERM
+
+def to_hsize(val) -> HSize:
+    return HSize(float(val))
+
+
+def to_vsize(val) -> VSize:
+    return VSize(float(val))
+
+
+CLI_TO_FUNCTIONS_PARAMS = {
+    "resize": {
+        "--min-width":   ("min_w",    to_hsize),
+        "--min-height":  ("min_h",    to_vsize),
+        "--max-width":   ("max_w",    to_hsize),
+        "--max-height":  ("max_h",    to_vsize),
+        "--stretch":     ("stretch",  bool),
+        "--resample":    ("resample", str),
+    },
+    "thumbnail": {
+        "--size":     ("size",     int),
+        "--stretch":  ("stretch",  bool),
+        "--resample": ("resample", str),
+    },
+    "fit_screen": {
+        "--enlarge":           ("enlarge",  bool),
+        "--horizontal-margin": ("h_margin", to_hsize),
+        "--vertical-margin":   ("v_margin", to_vsize),
+        "--stretch":           ("stretch",  bool),
+        "--resample":          ("resample", str),
+    },
+    "show": {
+        "--absolute-x": ("x",          to_hsize),
+        "--absolute-y": ("y",          to_vsize),
+        "--z-index":    ("z",          int),
+        "--relative-x": ("relative_x", to_hsize),
+        "--relative-y": ("relative_y", to_vsize),
+        "--align":      ("align",      str),
+        "--crop-w":     ("crop_w",     to_hsize),
+        "--crop-h":     ("crop_h",     to_vsize),
+    }
+}
 
 
 def main(argv: Optional[List[str]] = None) -> None:
@@ -177,7 +214,7 @@ def handle_image(image: Image, params: dict) -> None:
 
 
 def cli_to_func_params(func_name: str, params: dict) -> dict:
-    mappings = data.CLI_TO_FUNCTIONS_PARAMS
+    mappings = CLI_TO_FUNCTIONS_PARAMS
     return {
         mappings[func_name][param][0]: mappings[func_name][param][1](value)
         for param, value in params.items()

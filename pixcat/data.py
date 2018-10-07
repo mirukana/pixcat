@@ -3,7 +3,7 @@ ESC = "\033"
 MIN_ID = 1
 MAX_ID = 4_294_967_295
 
-# kitty sends a response on stdin (...) for those actions
+# kitty sends a response on stdin for those actions
 ACTIONS_WITH_ANSWER = {"display", "transmit+display", "query"}
 
 IMAGE_CONTROLS = {
@@ -73,39 +73,4 @@ IMAGE_CONTROLS = {
 
     "fit_cols": ("c", {}),
     "fit_rows": ("r", {}),
-}
-
-CLI_TO_FUNCTIONS_PARAMS = {
-    "resize": {
-        "--min-width":   ("min_w",    int),
-        "--min-height":  ("min_h",    int),
-        "--max-width":   ("max_w",    int),
-        "--max-height":  ("max_h",    int),
-        "--stretch":     ("stretch",  bool),
-        "--resample":    ("resample", str),
-    },
-    "thumbnail": {
-        "--size":     ("size",     int),
-        "--stretch":  ("stretch",  bool),
-        "--resample": ("resample", str),
-    },
-    "fit_screen": {
-        "--enlarge":           ("enlarge",  bool),
-        "--horizontal-margin": ("h_margin", int),
-        "--vertical-margin":   ("v_margin", int),
-        "--stretch":           ("stretch",  bool),
-        "--resample":          ("resample", str),
-    },
-    "show": {
-        "--absolute-x": ("x",          int),
-        "--absolute-y": ("y",          int),
-        "--z-index":    ("z",          int),
-        "--relative-x": ("relative_x", int),
-        "--relative-y": ("relative_y", int),
-        "--align":      ("align",      str),
-        "--offset-x":   ("offset_x",   int),
-        "--offset-y":   ("offset_y",   int),
-        "--crop-w":     ("crop_w",     int),
-        "--crop-h":     ("crop_h",     int),
-    }
 }

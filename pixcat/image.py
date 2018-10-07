@@ -37,7 +37,7 @@ class Image:
 
     def __post_init__(self, source) -> None:
         self._resized_cache = {}  # to make pylint shut up
-        self.origin         = source
+        self.origin         = self.origin or source
         self.id             = self._get_id()
         self._pil_image     = self._get_pil_image(source)
 
@@ -56,7 +56,8 @@ class Image:
         return random_id
 
 
-    def _get_pil_image(self, source) -> PILImage.Image:
+    @staticmethod
+    def _get_pil_image(source) -> PILImage.Image:
         if isinstance(source, PILImage.Image):
             return source
 
@@ -73,8 +74,7 @@ class Image:
             out.seek(0)
             return PILImage.open(out)
 
-        self.origin = path = Path(source).expanduser().resolve()
-        return PILImage.open(path)
+        return PILImage.open(Path(source).expanduser().resolve())
 
 
     def _get_kitty_file(self) -> str:
@@ -151,6 +151,7 @@ class Image:
 
         resample = getattr(PILImage, resample.upper())
         image    = type(self)(self._pil_image.resize((w, h), resample))
+        image.origin = self.origin
 
         self._resized_cache[(w.px, h.px)] = image
         return image

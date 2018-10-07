@@ -1,4 +1,6 @@
-- Update CLI tool
+- Add grid stuff to CLI tool
+
+- `--recursive` option instead of always being recursive
 
 - Nestable grids
 
