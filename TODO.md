@@ -1,11 +1,11 @@
+- Update CLI tool
+
 - Nestable grids
 
-- Move print path/name/etc to Image functions
+- Module with functions to clearing displayed images
 
-- Clearing images stuff
+- Take adventage of the standard FreeDesktop thumbnails dir with vignette
 
-- Use standard .thumbnails caches?
-
-- Parallel requests
+- Parallel requests?
 
 - Better README, documentation
