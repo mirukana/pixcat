@@ -20,17 +20,17 @@ ReturnedContent = Union[Image, AnyStr]
 Content         = Union[None, Image, AnyStr,
                         Callable[["Grid"], ReturnedContent]]
 
-ColSize = Union[HSize, TermHSize]
-RowSize = Union[VSize, TermVSize]
-
-AxisCell = Union[ColSize, RowSize]
-AxisCell = Union[AxisCell, Callable[["Axis", int], AxisCell]]
+ColSize   = Union[HSize, TermHSize]
+RowSize   = Union[VSize, TermVSize]
+AlignSize = Union[HSize, VSize]
+Cell      = Union["Column", "Row"]
+AxisCell  = Union[Cell, Callable[["Axis", int], Cell]]
 
 
 @dataclass
 class Column:
     size:  ColSize = HSize(256)
-    align: str     = "center"
+    align: str     = "center"  # left, center, right
 
 
 @dataclass
@@ -70,11 +70,6 @@ class Grid:
 
     raise_errors: bool = False
     print_errors: bool = True
-
-
-    def __post_init__(self) -> None:
-        if self.force_even or self.force_odd:
-            assert not (self.force_even and self.force_odd)
 
 
     @property
@@ -197,7 +192,7 @@ class Grid:
                       col:     int,
                       row:     int) -> None:
 
-        inner_y = math.floor(self.rows[row].size) / 2 - height / 2
+        inner_y = self._get_align(self.rows[row], height)
 
         restore_x = TERM.move_x(TERM.get_location()[1] - 1)
 
@@ -205,13 +200,15 @@ class Grid:
         TERM.print_esc("\n" * inner_y.cells, restore_x)
 
         if isinstance(content, Image):
-            inner_x = math.floor(self.cols[col].size / 2 - width  / 2)
+            inner_x = self._get_align(self.cols[col], width)
             content.show(align="left", relative_x=inner_x)
+
         else:
             for line in content.splitlines():
-                inner_x = math.floor(self.cols[col].size.cells / 2 -
-                                     ansilen(line)             / 2)
-                TERM.print_esc(" " * inner_x, line, "\n", restore_x)
+                inner_x = self._get_align(self.cols[col],
+                                          HSize(cells=ansilen(line)))
+
+                TERM.print_esc(" " * inner_x.cells, line, "\n", restore_x)
 
         # If needed, print blank lines to "complete the cell",
         # i.e. content height didn't fill it.
@@ -219,3 +216,16 @@ class Grid:
         TERM.print_esc(
             "\n" * (self.rows[row].size.cells - height.cells - inner_y.cells)
         )
+
+
+    @staticmethod
+    def _get_align(cell: Cell, child_size: AlignSize) -> AlignSize:
+        assert cell.align in ("left", "center", "right")
+
+        if cell.align == "left":
+            return type(cell.size)(0)
+
+        if cell.align == "center":
+            return math.floor(cell.size / 2 - child_size / 2)
+
+        return math.floor(cell.size - child_size)
