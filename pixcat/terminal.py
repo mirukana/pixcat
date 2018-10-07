@@ -64,9 +64,10 @@ class PixTerminal(blessed.Terminal):
         if "id" in controls:
             assert data.MIN_ID <= controls["id"] <= data.MAX_ID
 
-        # BUG: kitty seems to subtract 1px from offsets
+        # BUG:  kitty seems to subtract 1px from offset_x
+        # WARN: even 1 px of offset_y will make kitty print two lines after img
         controls["offset_x"] = controls.get("offset_x", 0) + 1
-        controls["offset_y"] = controls.get("offset_y", 0) + 1
+        # controls["offset_y"] = controls.get("offset_y", 0) + 1
 
         real_keys = {
             self.img_controls[k][0]:
@@ -131,15 +132,18 @@ class PixTerminal(blessed.Terminal):
     # y then x for those because blessings does it like that for some reason
     def move_relative(self, y: int = 0, x: int = 0) -> str:
         cursor_y, cursor_x = self.get_location()
-        return self.move(cursor_y + y - 1, cursor_x + x - 1)
+
+        if y < 0:
+            # This won't work if the terminal needs to scroll to move down
+            return self.move(cursor_y + y - 1, cursor_x + x - 1)
+
+        return "%s%s" % ("\n" * y, self.move_x(cursor_x + x - 1))
 
     def move_relative_x(self, x: int = 0) -> str:
-        cursor_y, cursor_x = self.get_location()
-        return self.move(cursor_y - 1, cursor_x + x - 1)
+        return self.move_relative(y=0, x=x)
 
     def move_relative_y(self, y: int = 0) -> str:
-        cursor_y, cursor_x = self.get_location()
-        return self.move(cursor_y + y - 1, cursor_x - 1)
+        return self.move_relative(y=y, x=0)
 
 
     @contextmanager
@@ -150,16 +154,15 @@ class PixTerminal(blessed.Terminal):
 
 
     def align(self, text: str, align: str = "left") -> str:
+        assert align in ("left", "center", "right")
+
         if align == "left":
             return self.ljust(text)
 
         if align == "center":
             return self.center(text)
 
-        if align == "right":
-            return self.rjust(text)
-
-        raise ValueError("Alignement must be 'left', 'center' or 'right'.")
+        return self.rjust(text)
 
 
     @staticmethod

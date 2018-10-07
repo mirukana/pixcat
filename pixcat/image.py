@@ -13,8 +13,8 @@ from dataclasses import InitVar, dataclass, field
 from PIL import Image as PILImage
 
 from . import data
+from .size import HSize, TermHSize, TermVSize, VSize
 from .terminal import TERM
-from .size import HSize, VSize
 
 ImageType = Union[bytes, str, Path, PILImage.Image]
 
@@ -92,36 +92,21 @@ class Image:
         return VSize(px=self._pil_image.size[1])
 
 
-    @staticmethod
-    def _negative_col_to_px(num: int) -> int:
-        return num if num >= 0 else TERM.cell_px_width * abs(num)
-
-    @staticmethod
-    def _negative_row_to_px(num: int) -> int:
-        return num if num >= 0 else TERM.cell_px_height * abs(num)
-
-
     def resize(self,
-               min_w:    int           = 1,
-               min_h:    int           = 1,
-               max_w:    Optional[int] = None,
-               max_h:    Optional[int] = None,
-               stretch:  bool          = False,
-               resample: str           = "lanczos") -> "Image":
+               min_w:    HSize           = HSize(px=1),
+               min_h:    VSize           = VSize(px=1),
+               max_w:    Optional[HSize] = None,
+               max_h:    Optional[VSize] = None,
+               stretch:  bool            = False,
+               resample: str             = "lanczos") -> "Image":
 
-        w, h = img_w, img_h = self._pil_image.size
+        w, h = img_w, img_h = self.width, self.height
 
         max_w = max_w or img_w
         max_h = max_h or img_h
 
-        min_w = self._negative_col_to_px(min_w)
-        min_h = self._negative_row_to_px(min_h)
-        max_w = self._negative_col_to_px(max_w)
-        max_h = self._negative_row_to_px(max_h)
-
         assert min_w <= max_w
         assert min_h <= max_h
-
 
         # Upscale if image is smaller than minimum width/height:
         if (img_w < min_w or img_h < min_h) and img_w < max_w and img_h <max_h:
@@ -158,7 +143,7 @@ class Image:
 
         # If an image was already made for decided width/height, return it:
 
-        cached = self._resized_cache.get((w, h))
+        cached = self._resized_cache.get((w.px, h.px))
         if cached:
             return cached
 
@@ -167,7 +152,7 @@ class Image:
         resample = getattr(PILImage, resample.upper())
         image    = type(self)(self._pil_image.resize((w, h), resample))
 
-        self._resized_cache[(w, h)] = image
+        self._resized_cache[(w.px, h.px)] = image
         return image
 
 
@@ -176,21 +161,19 @@ class Image:
                   stretch:  bool = False,
                   resample: str  = "lanczos") -> "Image":
 
-        return self.resize(*(size,) * 4, stretch, resample)
+        w, h = HSize(px=size), VSize(px=size)
+        return self.resize(w, h, w, h, stretch, resample)
 
 
     def fit_screen(self,
-                   h_margin: int  = 0,
-                   v_margin: int  = 0,
-                   enlarge:  bool = False,
-                   stretch:  bool = False,
-                   resample: str  = "lanczos") -> "Image":
+                   h_margin: HSize = HSize(0),
+                   v_margin: VSize = VSize(0),
+                   enlarge:  bool  = False,
+                   stretch:  bool  = False,
+                   resample: str   = "lanczos") -> "Image":
 
-        h_margin = self._negative_col_to_px(h_margin) * 4
-        v_margin = self._negative_row_to_px(v_margin) * 4
-
-        max_wh = (TERM.px_width - h_margin, TERM.px_height - v_margin)
-        min_wh =  max_wh if enlarge else (1, 1)
+        max_wh = (TermHSize() - h_margin * 4, TermVSize() - v_margin * 4)
+        min_wh = max_wh if enlarge else (HSize(px=1), VSize(px=1))
 
         return self.resize(*min_wh, *max_wh, stretch, resample)
 
@@ -211,31 +194,32 @@ class Image:
         offset_y = VSize(0)
 
         if x is not None:
-            TERM.print_esc(TERM.move_x(math.floor(x).cells))
-            offset_x += x - math.floor(x)
-
+            TERM.print_esc(TERM.move_x(x.floor_cell().cells))
+            offset_x += x - x.floor_cell()
 
         elif align == "center":
             to_add      = TERM.px_width / 2 - self.width / 2
-            relative_x += math.floor(to_add)
-            offset_x   += to_add - math.floor(to_add)
+            relative_x += to_add.floor_cell()
+            offset_x   += to_add - to_add.floor_cell()
 
         elif align == "right":
             to_add      = TERM.px_width - self.width
-            relative_x += math.floor(to_add)
-            offset_x   += to_add - math.floor(to_add)
-
+            relative_x += to_add.floor_cell()
+            offset_x   += to_add - to_add.floor_cell()
 
         if y is not None:
-            TERM.print_esc(TERM.move_y(y.cells - 1))
-            offset_y += y - math.floor(y)
-
+            TERM.print_esc(TERM.move_y(y.floor_cell().cells - 1))
+            offset_y += y - y.floor_cell()
 
         if relative_x:
-            TERM.print_esc(TERM.move_relative_x(relative_x.cells))
+            TERM.print_esc(
+                TERM.move_relative_x(relative_x.floor_cell().cells)
+            )
 
         if relative_y:
-            TERM.print_esc(TERM.move_relative_y(relative_y.cells))
+            TERM.print_esc(
+                TERM.move_relative_y(relative_y.floor_cell().cells)
+            )
 
 
         params = {

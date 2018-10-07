@@ -4,6 +4,9 @@
 # Pylint doesn't recognize Axis as a list
 # pylint: disable=unsubscriptable-object
 
+# General rule for Size-based cursor movements:
+# use .floor_cell() for paddings, .ceil_cell() for the rest
+
 import math
 from collections import UserList
 from typing import AnyStr, Callable, Iterable, List, Optional, Tuple, Union
@@ -36,7 +39,7 @@ class Column:
 @dataclass
 class Row:
     size:  RowSize = VSize(256)
-    align: str     = "center"
+    align: str     = "center" # top, center or right
 
 
 @dataclass
@@ -56,8 +59,8 @@ class Axis(UserList):
 
 @dataclass
 class Grid:
-    cols: Axis = field(default=Axis([Column(256)]))
-    rows: Axis = field(default=Axis([Row(256)]))
+    cols: Axis = field(default=Axis([Column(HSize(px=256))]))
+    rows: Axis = field(default=Axis([Row(VSize(px=256))]))
 
     max_cols: Optional[int] = None
     max_rows: Optional[int] = None
@@ -111,17 +114,22 @@ class Grid:
 
             # "Undo" any terminal scrolling and put cursor back to the row
             # beginning so we can print more content in line.
-            TERM.print_esc(TERM.move_relative_y(-self.rows[row].size.cells),
-                           restore_x)
+            TERM.print_esc(
+                TERM.move_relative_y(
+                    -self.rows[row].size.ceil_cell().cells
+                ),
+                restore_x
+            )
 
             # Advance the cursor x position in the row
-            TERM.print_esc(TERM.move_relative_x(self.cols[col].size.cells))
+            TERM.print_esc(
+                TERM.move_relative_x(self.cols[col].size.ceil_cell().cells)
+            )
 
             col += 1
 
             if col >= self.cells_per_row:
-                # Print enough lines to begin a new row below the previous one
-                TERM.print_esc("\n" * self.rows[row].size.cells)
+                TERM.print_esc("\n" * self.rows[row].size.ceil_cell().cells)
 
                 col  = 0
                 row += 1
@@ -129,7 +137,7 @@ class Grid:
                 if self.max_rows and row > self.max_rows:
                     break
 
-        TERM.print_esc("\n" * self.rows[row].size.cells)
+        TERM.print_esc("\n" * self.rows[row].size.ceil_cell().cells)
         return self
 
 
@@ -154,9 +162,9 @@ class Grid:
     def _get_resized_image(self, cell: Image, col: int, row: int) -> Image:
         try:
             return cell.resize(
-                1, 1,
+                HSize(px=1), VSize(px=1),
                 # TODO: change this to use new Size stuff
-                self.cols[col].size.px, self.rows[row].size.px
+                self.cols[col].size, self.rows[row].size
             )
 
         except Exception as err:
@@ -168,21 +176,22 @@ class Grid:
 
 
     def _get_text(self, cell: AnyStr, col: int, row: int) -> str:
+        params = {
+            "width":              self.cols[col].size.ceil_cell().cells,
+            "placeholder":        self.cut_placeholder,
+            "tabsize":            4,
+            "replace_whitespace": False,
+            "drop_whitespace":    False
+        }
+
         assert self.text_overflow in ("wrap", "shorten")
 
-        lines = [
-            getattr(ansiwrap, self.text_overflow)(
-                line,
-                width              = self.cols[col].size.cells,
-                placeholder        = self.cut_placeholder,
-                tabsize            = 4,
-                replace_whitespace = False,
-                drop_whitespace    = False
-            )
-            for line in cell.split("\n")
-        ]
+        if self.text_overflow == "wrap":
+            lines = ansiwrap.wrap(cell, **params)
+        else:
+            lines = [ansiwrap.shorten(l, **params) for l in cell.splitlines()]
 
-        return "\n".join(lines[:self.rows[row].size.cells])
+        return "\n".join(lines[:self.rows[row].size.ceil_cell().cells])
 
 
     def _show_content(self,
@@ -196,36 +205,39 @@ class Grid:
 
         restore_x = TERM.move_x(TERM.get_location()[1] - 1)
 
-        # Print vertical padding as blank lines, put cursor back to the right x
-        TERM.print_esc("\n" * inner_y.cells, restore_x)
-
         if isinstance(content, Image):
             inner_x = self._get_align(self.cols[col], width)
-            content.show(align="left", relative_x=inner_x)
+            content.show(align="left", relative_x=inner_x, relative_y=inner_y)
 
         else:
+            # Print vertical padding as blank lines, put cursor back to right x
+            TERM.print_esc("\n" * inner_y.floor_cell().cells, restore_x)
+
             for line in content.splitlines():
                 inner_x = self._get_align(self.cols[col],
                                           HSize(cells=ansilen(line)))
 
-                TERM.print_esc(" " * inner_x.cells, line, "\n", restore_x)
+                TERM.print_esc(" " * inner_x.floor_cell().cells,
+                               line, "\n",
+                               restore_x)
 
         # If needed, print blank lines to "complete the cell",
         # i.e. content height didn't fill it.
         # The cursor needs to always be at the cell row's bottom.
         TERM.print_esc(
-            "\n" * (self.rows[row].size.cells - height.cells - inner_y.cells)
+            "\n" * (self.rows[row].size.ceil_cell() - height - inner_y)\
+                    .floor_cell().cells
         )
 
 
     @staticmethod
     def _get_align(cell: Cell, child_size: AlignSize) -> AlignSize:
-        assert cell.align in ("left", "center", "right")
+        assert cell.align in ("left", "top", "center", "right", "bottom")
 
-        if cell.align == "left":
+        if cell.align in ("left", "top"):
             return type(cell.size)(0)
 
         if cell.align == "center":
-            return math.floor(cell.size / 2 - child_size / 2)
+            return (cell.size / 2 - child_size / 2).floor_cell()
 
-        return math.floor(cell.size - child_size)
+        return (cell.size - child_size).floor_cell()
