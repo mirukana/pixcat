@@ -1,25 +1,63 @@
 # Copyright 2018 miruka
 # This file is part of pixcat, licensed under LGPLv3.
 
+# Pylint doesn't recognize Axis as a list
+# pylint: disable=unsubscriptable-object
+
 import math
-from typing import AnyStr, Callable, Iterable, Optional, Tuple, Union
+from collections import UserList
+from typing import AnyStr, Callable, Iterable, List, Optional, Tuple, Union
 
 import ansiwrap
 from ansiwrap import ansilen
 from dataclasses import dataclass, field
 
 from . import Image
-from .size import AxisSizes, HSize, TermHSize, VSize
+from .size import HSize, TermHSize, TermVSize, VSize
 from .terminal import TERM
 
-ContentType  = Union[Image, AnyStr]
-CellType     = Union[None, Image, AnyStr, Callable[["Grid"], ContentType]]
+ReturnedContent = Union[Image, AnyStr]
+Content         = Union[None, Image, AnyStr,
+                        Callable[["Grid"], ReturnedContent]]
+
+ColSize = Union[HSize, TermHSize]
+RowSize = Union[VSize, TermVSize]
+
+AxisCell = Union[ColSize, RowSize]
+AxisCell = Union[AxisCell, Callable[["Axis", int], AxisCell]]
+
+
+@dataclass
+class Column:
+    size:  ColSize = HSize(256)
+    align: str     = "center"
+
+
+@dataclass
+class Row:
+    size:  RowSize = VSize(256)
+    align: str     = "center"
+
+
+@dataclass
+class Axis(UserList):
+    data:        List[AxisCell] = field(default_factory=list)
+    wrap_around: bool           = False
+
+    def __getitem__(self, index):
+        try:
+            item = self.data[index]
+        except IndexError:
+            item = self.data[index % len(self) if self.wrap_around else -1]
+
+        return item(self, index) if callable(item) else item
+
 
 
 @dataclass
 class Grid:
-    cells_w: AxisSizes = field(default=None)
-    cells_h: AxisSizes = field(default=None)
+    cols: Axis = field(default=Axis([Column(256)]))
+    rows: Axis = field(default=Axis([Row(256)]))
 
     max_cols: Optional[int] = None
     max_rows: Optional[int] = None
@@ -35,12 +73,6 @@ class Grid:
 
 
     def __post_init__(self) -> None:
-        self.cells_w = self.cells_w or AxisSizes(HSize(px=256))
-        self.cells_h = self.cells_h or AxisSizes(VSize(px=256))
-
-        assert isinstance(self.cells_w, AxisSizes)
-        assert isinstance(self.cells_h, AxisSizes)
-
         if self.force_even or self.force_odd:
             assert not (self.force_even and self.force_odd)
 
@@ -54,7 +86,7 @@ class Grid:
             index  = at_col = can_fit = 0
 
             while True:
-                to_col = self.cells_w[index]
+                to_col = self.cols[index].size
 
                 if at_col + to_col > term_w - TERM.cell_px_width:
                     break
@@ -74,27 +106,27 @@ class Grid:
         return max(1, can_fit)
 
 
-    def show(self, cells_content: Iterable[CellType]) -> "Grid":
+    def show(self, contents: Iterable[Content]) -> "Grid":
         col = row = 0
 
-        for content in cells_content:
+        for content in contents:
             restore_x = TERM.move_x(TERM.get_location()[1] - 1)
 
             self._show_content(*self._get_content(content, col, row), col, row)
 
             # "Undo" any terminal scrolling and put cursor back to the row
             # beginning so we can print more content in line.
-            TERM.print_esc(TERM.move_relative_y(-self.cells_h[row].cells),
+            TERM.print_esc(TERM.move_relative_y(-self.rows[row].size.cells),
                            restore_x)
 
             # Advance the cursor x position in the row
-            TERM.print_esc(TERM.move_relative_x(self.cells_w[col].cells))
+            TERM.print_esc(TERM.move_relative_x(self.cols[col].size.cells))
 
             col += 1
 
             if col >= self.cells_per_row:
                 # Print enough lines to begin a new row below the previous one
-                TERM.print_esc("\n" * self.cells_h[row].cells)
+                TERM.print_esc("\n" * self.rows[row].size.cells)
 
                 col  = 0
                 row += 1
@@ -102,12 +134,12 @@ class Grid:
                 if self.max_rows and row > self.max_rows:
                     break
 
-        TERM.print_esc("\n" * self.cells_h[row].cells)
+        TERM.print_esc("\n" * self.rows[row].size.cells)
         return self
 
 
-    def _get_content(self, cell: CellType, col: int, row: int
-                    ) -> Tuple[ContentType, HSize, VSize]:
+    def _get_content(self, cell: Content, col: int, row: int
+                    ) -> Tuple[ReturnedContent, HSize, VSize]:
         if cell is None:
             return ("", HSize(0), VSize(0))
 
@@ -129,7 +161,7 @@ class Grid:
             return cell.resize(
                 1, 1,
                 # TODO: change this to use new Size stuff
-                self.cells_w[col].px, self.cells_h[row].px
+                self.cols[col].size.px, self.rows[row].size.px
             )
 
         except Exception as err:
@@ -146,7 +178,7 @@ class Grid:
         lines = [
             getattr(ansiwrap, self.text_overflow)(
                 line,
-                width              = self.cells_w[col].cells,
+                width              = self.cols[col].size.cells,
                 placeholder        = self.cut_placeholder,
                 tabsize            = 4,
                 replace_whitespace = False,
@@ -155,14 +187,17 @@ class Grid:
             for line in cell.split("\n")
         ]
 
-        return "\n".join(lines[:self.cells_h[row].cells])
+        return "\n".join(lines[:self.rows[row].size.cells])
 
 
     def _show_content(self,
-                      content: ContentType, width: HSize, height: VSize,
-                      col: int, row: int) -> None:
+                      content: ReturnedContent,
+                      width:   HSize,
+                      height:  VSize,
+                      col:     int,
+                      row:     int) -> None:
 
-        inner_y = math.floor(self.cells_h[row]) / 2 - height / 2
+        inner_y = math.floor(self.rows[row].size) / 2 - height / 2
 
         restore_x = TERM.move_x(TERM.get_location()[1] - 1)
 
@@ -170,16 +205,17 @@ class Grid:
         TERM.print_esc("\n" * inner_y.cells, restore_x)
 
         if isinstance(content, Image):
-            inner_x = self.cells_w[col] / 2 - width  / 2
+            inner_x = math.floor(self.cols[col].size / 2 - width  / 2)
             content.show(align="left", relative_x=inner_x)
         else:
             for line in content.splitlines():
-                inner_x = self.cells_w[col].cells // 2 - ansilen(line) // 2
+                inner_x = math.floor(self.cols[col].size.cells / 2 -
+                                     ansilen(line)             / 2)
                 TERM.print_esc(" " * inner_x, line, "\n", restore_x)
 
         # If needed, print blank lines to "complete the cell",
         # i.e. content height didn't fill it.
         # The cursor needs to always be at the cell row's bottom.
         TERM.print_esc(
-            "\n" * (self.cells_h[row].cells - height.cells - inner_y.cells)
+            "\n" * (self.rows[row].size.cells - height.cells - inner_y.cells)
         )
