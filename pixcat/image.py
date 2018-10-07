@@ -223,10 +223,10 @@ class Image:
 
 
         params = {
-            "offset_x": offset_x.px,
-            "offset_y": offset_y.px,
-            "crop_w":   crop_w.px,
-            "crop_h":   crop_h.px,
+            "offset_x": round(offset_x.px),
+            "offset_y": round(offset_y.px),
+            "crop_w":   round(crop_w.px),
+            "crop_h":   round(crop_h.px),
             "z_index":  z,
 
             "action":  "transmit+display",
