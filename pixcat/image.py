@@ -187,7 +187,8 @@ class Image:
              relative_y: VSize = VSize(0),
              align:      str   = "center",
              crop_w:     HSize = HSize(0),
-             crop_h:     VSize = VSize(0)) -> "Image":
+             crop_h:     VSize = VSize(0),
+             raw_code:   bool  = False) -> Union[str, "Image"]:
 
         assert align in ("left", "center", "right")
 
@@ -236,6 +237,9 @@ class Image:
             "id":      self.id,
             "payload": self._get_kitty_file(),
         }
+
+        if raw_code:
+            return TERM.get_code(**params)
 
         TERM.run_code(**params)
         return self
