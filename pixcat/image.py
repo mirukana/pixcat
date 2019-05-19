@@ -113,13 +113,13 @@ class Image:
         max_w = max_w or img_w
         max_h = max_h or img_h
 
-        assert min_w <= max_w
-        assert min_h <= max_h
-
         min_w = self._negative_col_to_px(min_w)
         min_h = self._negative_row_to_px(min_h)
         max_w = self._negative_col_to_px(max_w)
         max_h = self._negative_row_to_px(max_h)
+
+        assert min_w <= max_w
+        assert min_h <= max_h
 
         # Upscale if image is smaller than minimum width/height:
         if (img_w < min_w or img_h < min_h) and img_w < max_w and img_h <max_h:
