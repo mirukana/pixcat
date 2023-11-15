@@ -119,6 +119,7 @@ class PixTerminal(blessed.Terminal):
         if answer and ";OK" not in answer:
             raise KittyAnswerError(code, answer)
 
+
     def detect_support(self) -> bool:
         try:
             # Send an useless code that will force a response out of kitty,
