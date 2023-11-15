@@ -105,9 +105,6 @@ class PixTerminal(blessed.Terminal):
 
         answer = "".join(chars)
 
-        if answer and ";OK" not in answer:
-            raise KittyAnswerError(code, answer)
-
         try:
             # Remove temp file to avoid using excess recourses, normally not
             # necessary but repeated calls to pixact multiple times a second
@@ -117,7 +114,10 @@ class PixTerminal(blessed.Terminal):
         except FileNotFoundError:
             # This should not occure, but if by chance someone did pixcat's job
             # for it we aren't going to complain about it.
-            return
+            pass
+
+        if answer and ";OK" not in answer:
+            raise KittyAnswerError(code, answer)
 
     def detect_support(self) -> bool:
         try:
