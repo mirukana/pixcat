@@ -1,6 +1,7 @@
 import array
 import base64
 import fcntl
+import os
 import signal
 import sys
 import termios
@@ -107,6 +108,16 @@ class PixTerminal(blessed.Terminal):
         if answer and ";OK" not in answer:
             raise KittyAnswerError(code, answer)
 
+        try:
+            # Remove temp file to avoid using excess recourses, normally not
+            # necessary but repeated calls to pixact multiple times a second
+            # will (relatively) quickly cause further attempts to make temporary
+            # files to fail.
+            os.remove(payload)
+        except FileNotFoundError:
+            # This should not occure, but if by chance someone did pixcat's job
+            # for it we aren't going to complain about it.
+            return
 
     def detect_support(self) -> bool:
         try:
