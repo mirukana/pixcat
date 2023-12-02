@@ -42,7 +42,7 @@ setup(
         ]
     },
 
-    url      = "https://github.com/mirukan/pixcat",
+    url      = "https://github.com/an-prata/pixcat",
     keywords = "kitty api cli terminal print display resize scale image " \
                "picture graphic icat",
 
