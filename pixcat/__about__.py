@@ -4,7 +4,7 @@
 """Display images on a kitty terminal with optional resizing."""
 
 __pkg_name__ = "pixcat"
-__version__  = "0.1.4"
+__version__  = "0.1.5"
 __status__   = "Development"
 # __status__ = "Production"
 

@@ -1,3 +1,7 @@
+My own fork of pixcat, changing only the cleanup of temporary files. Pixcat under this fork will delete its temporary files after displaying them, preventing the saturation of your tmpfs.
+
+Original README below, links are not edited and go to the original repo's links:
+
 # pixcat
 
 [![PyPI downloads](http://pepy.tech/badge/pixcat)](
